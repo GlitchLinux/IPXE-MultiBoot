@@ -1,0 +1,552 @@
+#!/bin/bash
+# Fixed iPXE build script with better connectivity checking
+
+echo "🔍 Fixed iPXE Build Script"
+echo "=========================="
+
+# Function to check command success
+check_command() {
+    if [ $? -eq 0 ]; then
+        echo "✅ $1 successful"
+    else
+        echo "❌ $1 failed with exit code $?"
+        echo "🛑 Stopping here for debugging"
+        exit 1
+    fi
+}
+
+# Check if running as root
+echo "👤 Checking user permissions..."
+if [[ $EUID -eq 0 ]]; then
+    echo "⚠️  Running as root - this is not recommended for building"
+    echo "   Continue anyway? (y/N)"
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+else
+    echo "✅ Running as regular user: $USER"
+fi
+
+# Check system information
+echo ""
+echo "💻 System Information:"
+echo "   OS: $(lsb_release -d | cut -f2)"
+echo "   Kernel: $(uname -r)"
+echo "   Architecture: $(uname -m)"
+echo "   Available space in /tmp: $(df -h /tmp | tail -1 | awk '{print $4}')"
+
+# Better internet connectivity check
+echo ""
+echo "🌐 Checking internet connectivity..."
+echo "   Testing multiple methods..."
+
+# Try multiple connectivity tests
+CONNECTED=false
+
+# Test 1: Try to resolve DNS
+if nslookup google.com > /dev/null 2>&1; then
+    echo "✅ DNS resolution works"
+    CONNECTED=true
+elif nslookup 8.8.8.8 > /dev/null 2>&1; then
+    echo "✅ DNS works with IP"
+    CONNECTED=true
+fi
+
+# Test 2: Try wget/curl
+if command -v wget > /dev/null 2>&1; then
+    if wget -q --spider --timeout=5 http://google.com; then
+        echo "✅ HTTP connectivity via wget"
+        CONNECTED=true
+    fi
+elif command -v curl > /dev/null 2>&1; then
+    if curl -s --connect-timeout 5 http://google.com > /dev/null; then
+        echo "✅ HTTP connectivity via curl"
+        CONNECTED=true
+    fi
+fi
+
+# Test 3: Try git connectivity (what we actually need)
+if command -v git > /dev/null 2>&1; then
+    if timeout 10 git ls-remote https://github.com/ipxe/ipxe.git > /dev/null 2>&1; then
+        echo "✅ Git connectivity works (this is what we need!)"
+        CONNECTED=true
+    fi
+fi
+
+if [ "$CONNECTED" = false ]; then
+    echo "⚠️  Standard connectivity tests failed, but continuing anyway..."
+    echo "   You're clearly connected (talking to Claude), so network config may be unusual"
+    echo "   We'll try the build and see what happens..."
+else
+    echo "✅ Internet connectivity confirmed"
+fi
+
+# Check and install dependencies with better error handling
+echo ""
+echo "📦 Checking build dependencies..."
+REQUIRED_PACKAGES="git gcc binutils make perl liblzma-dev isolinux genisoimage build-essential"
+
+echo "   Updating package list..."
+if sudo apt update > /dev/null 2>&1; then
+    echo "✅ Package list updated"
+else
+    echo "⚠️  Package update had issues, but continuing..."
+fi
+
+for package in $REQUIRED_PACKAGES; do
+    echo "   Checking $package..."
+    if dpkg -l | grep -q "^ii  $package "; then
+        echo "   ✅ $package already installed"
+    else
+        echo "   📥 Installing $package..."
+        if sudo apt install -y $package; then
+            echo "   ✅ $package installed successfully"
+        else
+            echo "   ⚠️  $package installation had issues"
+        fi
+    fi
+done
+
+# Create working directory
+echo ""
+echo "📁 Setting up working directory..."
+WORK_DIR="/tmp/ipxe-build-$(date +%s)"
+echo "   Creating: $WORK_DIR"
+mkdir -p "$WORK_DIR"
+check_command "Working directory creation"
+
+cd "$WORK_DIR"
+echo "   Current directory: $(pwd)"
+
+# Try different git clone methods
+echo ""
+echo "📥 Downloading iPXE source code..."
+echo "   Trying multiple download methods..."
+
+# Method 1: Official git protocol
+if git clone git://git.ipxe.org/ipxe.git > /dev/null 2>&1; then
+    echo "✅ Downloaded via git:// protocol"
+# Method 2: HTTPS GitHub mirror
+elif git clone https://github.com/ipxe/ipxe.git > /dev/null 2>&1; then
+    echo "✅ Downloaded via GitHub HTTPS"
+# Method 3: HTTP if available
+elif git clone http://git.ipxe.org/ipxe.git > /dev/null 2>&1; then
+    echo "✅ Downloaded via HTTP"
+else
+    echo "❌ All git clone methods failed"
+    echo "   Let's try a different approach..."
+    
+    # Try downloading a release tarball instead
+    echo "   Trying to download release tarball..."
+    if command -v wget > /dev/null 2>&1; then
+        wget -O ipxe.tar.gz https://github.com/ipxe/ipxe/archive/master.tar.gz
+        if [ -f ipxe.tar.gz ]; then
+            tar -xzf ipxe.tar.gz
+            mv ipxe-master ipxe
+            echo "✅ Downloaded and extracted tarball"
+        fi
+    fi
+fi
+
+if [ ! -d "ipxe" ]; then
+    echo "❌ Failed to get iPXE source code"
+    echo ""
+    echo "🔍 Debugging info:"
+    echo "   Current directory: $(pwd)"
+    echo "   Directory contents:"
+    ls -la
+    echo ""
+    echo "   Try manual download:"
+    echo "   wget https://github.com/ipxe/ipxe/archive/master.tar.gz"
+    echo "   tar -xzf master.tar.gz"
+    echo "   mv ipxe-master ipxe"
+    exit 1
+fi
+
+echo "   Entering iPXE source directory..."
+cd ipxe/src
+check_command "Change to iPXE src directory"
+
+echo "   Current directory: $(pwd)"
+
+# Create directories if they don't exist
+echo ""
+echo "📂 Setting up configuration directories..."
+mkdir -p config/local
+check_command "Config directory creation"
+
+# Create embedded script
+echo ""
+echo "📝 Creating embedded iPXE script..."
+cat > embed.ipxe << 'EOF'
+#!ipxe
+
+echo
+echo ===================================
+echo    Glitch Linux iPXE Netboot
+echo ===================================
+echo
+
+console
+
+echo Configuring network...
+dhcp
+
+echo Network configured:
+echo IP: ${ip}
+echo Gateway: ${gateway}
+echo DNS: ${dns}
+echo
+
+echo Chaining to Glitch Linux menu...
+chain http://glitchlinux.wtf/ipxe/custom.ipxe || goto error
+
+:error
+echo
+echo Failed to load Glitch Linux menu!
+echo Dropping to iPXE shell...
+echo
+shell
+EOF
+
+echo "✅ Embedded script created successfully"
+
+# Create minimal build configuration
+echo ""
+echo "📋 Creating minimal build configuration..."
+cat > config/local/general.h << 'EOF'
+/* Minimal custom iPXE build configuration */
+#define DOWNLOAD_PROTO_HTTP
+EOF
+
+echo "✅ Build configuration created"
+
+# Check build tools
+echo ""
+echo "🔧 Checking build tools..."
+echo "   GCC: $(gcc --version 2>/dev/null | head -1 || echo 'Not available')"
+echo "   Make: $(make --version 2>/dev/null | head -1 || echo 'Not available')"
+
+# Attempt to build
+echo ""
+echo "🔨 Starting iPXE build..."
+echo "   This will take several minutes..."
+echo ""
+
+# Run make with some output
+make bin/ipxe.iso EMBED=embed.ipxe
+
+BUILD_EXIT_CODE=$?
+
+if [ $BUILD_EXIT_CODE -eq 0 ] && [ -f "bin/ipxe.iso" ]; then
+    echo ""
+    echo "🎉 Build completed successfully!"
+    ls -lh bin/ipxe.iso
+    
+    # Copy to /tmp for easy access
+    cp bin/ipxe.iso /tmp/glitch-ipxe.iso
+    echo "✅ Custom iPXE ISO created: /tmp/glitch-ipxe.iso"
+    
+    echo ""
+    echo "🚀 Usage:"
+    echo "1. Burn /tmp/glitch-ipxe.iso to CD/USB"
+    echo "2. Boot from the ISO"
+    echo "3. iPXE will automatically load your Glitch Linux menu"
+    
+else
+    echo ""
+    echo "❌ Build failed or ISO not created"
+    echo "   Exit code: $BUILD_EXIT_CODE"
+    echo ""
+    echo "   Checking what was built:"
+    ls -la bin/ 2>/dev/null || echo "   No bin/ directory"
+fi
+
+#!/bin/bash
+# Enhanced iPXE ISO Builder with UEFI Support
+# Creates hybrid ISO that boots on both BIOS and UEFI systems
+
+echo "🔨 Building iPXE ISO with UEFI Support"
+echo "======================================"
+
+# Find existing build directory
+BUILD_DIR=$(find /tmp -name "ipxe-build-*" -type d 2>/dev/null | head -1)
+
+if [ -z "$BUILD_DIR" ] || [ ! -d "$BUILD_DIR/ipxe/src" ]; then
+    echo "❌ No existing build directory found"
+    echo "   Please run the iPXE build script first"
+    exit 1
+fi
+
+echo "📁 Using existing build: $BUILD_DIR"
+cd "$BUILD_DIR/ipxe/src"
+
+# Create enhanced embedded script
+echo "📝 Creating enhanced embedded script..."
+cat > embed.ipxe << 'EOF'
+#!ipxe
+
+echo
+echo ===================================
+echo    Glitch Linux iPXE Netboot
+echo    UEFI + BIOS Compatible
+echo ===================================
+echo
+
+echo Firmware: ${platform}
+echo MAC: ${mac}
+
+echo Configuring network...
+dhcp || goto manual_config
+
+echo Network configured:
+echo IP: ${ip}
+echo Gateway: ${gateway} 
+echo DNS: ${dns}
+echo
+
+echo Loading Glitch Linux menu...
+chain http://192.168.0.198/ipxe/custom.ipxe || goto error
+
+:manual_config
+echo DHCP failed. Please configure network manually.
+echo Example commands:
+echo   set net0/ip 192.168.0.100
+echo   set net0/netmask 255.255.255.0
+echo   set net0/gateway 192.168.0.1
+echo   set net0/dns 8.8.8.8
+echo   ifopen net0
+echo   chain http://192.168.0.198/ipxe/custom.ipxe
+echo
+goto shell
+
+:error
+echo
+echo Failed to load Glitch Linux menu!
+echo Firmware: ${platform}
+echo
+echo Available commands:
+echo   dhcp
+echo   chain http://192.168.0.198/ipxe/custom.ipxe
+echo   chain https://glitchlinux.wtf/ipxe/custom.ipxe
+echo
+echo Manual boot:
+echo   kernel http://192.168.0.198/ipxe/live/vmlinuz-6.1.0-38-amd64
+echo   initrd http://192.168.0.198/ipxe/live/initrd.img-6.1.0-38-amd64
+echo   imgargs vmlinuz-6.1.0-38-amd64 boot=live components
+echo   boot
+echo
+goto shell
+
+:shell
+echo Dropping to iPXE shell...
+shell
+EOF
+
+echo "✅ Enhanced embedded script created"
+
+# Clean previous builds
+echo "🧹 Cleaning previous builds..."
+make clean > /dev/null 2>&1
+
+# Build multiple iPXE targets for hybrid ISO
+echo "🔨 Building iPXE binaries for hybrid ISO..."
+
+# Build BIOS version (legacy)
+echo "   📀 Building BIOS/Legacy version..."
+make bin/ipxe.lkrn EMBED=embed.ipxe
+if [ ! -f "bin/ipxe.lkrn" ]; then
+    echo "❌ Failed to build BIOS version"
+    exit 1
+fi
+echo "   ✅ BIOS version built: bin/ipxe.lkrn"
+
+# Build UEFI version (x86_64)
+echo "   💻 Building UEFI x86_64 version..."
+make bin-x86_64-efi/ipxe.efi EMBED=embed.ipxe
+if [ ! -f "bin-x86_64-efi/ipxe.efi" ]; then
+    echo "❌ Failed to build UEFI version"
+    exit 1
+fi
+echo "   ✅ UEFI version built: bin-x86_64-efi/ipxe.efi"
+
+# Build additional formats
+echo "   🔧 Building additional formats..."
+make bin/ipxe.iso EMBED=embed.ipxe > /dev/null 2>&1
+make bin/ipxe.usb EMBED=embed.ipxe > /dev/null 2>&1
+
+# Create hybrid ISO directory structure
+echo ""
+echo "📁 Creating hybrid ISO structure..."
+HYBRID_DIR="/tmp/ipxe-hybrid-$$"
+mkdir -p "$HYBRID_DIR"/{isolinux,EFI/BOOT}
+
+# Copy BIOS boot files
+echo "   📀 Setting up BIOS boot files..."
+cp bin/ipxe.lkrn "$HYBRID_DIR/isolinux/"
+cp /usr/lib/ISOLINUX/isolinux.bin "$HYBRID_DIR/isolinux/" 2>/dev/null || \
+cp /usr/share/syslinux/isolinux.bin "$HYBRID_DIR/isolinux/" 2>/dev/null || \
+cp /usr/lib/syslinux/modules/bios/isolinux.bin "$HYBRID_DIR/isolinux/" 2>/dev/null || {
+    echo "❌ Could not find isolinux.bin - installing syslinux..."
+    sudo apt update && sudo apt install -y syslinux-utils isolinux
+    cp /usr/lib/ISOLINUX/isolinux.bin "$HYBRID_DIR/isolinux/" || \
+    cp /usr/share/syslinux/isolinux.bin "$HYBRID_DIR/isolinux/"
+}
+
+cp /usr/lib/syslinux/modules/bios/ldlinux.c32 "$HYBRID_DIR/isolinux/" 2>/dev/null || \
+cp /usr/share/syslinux/ldlinux.c32 "$HYBRID_DIR/isolinux/" 2>/dev/null
+
+# Create isolinux configuration
+cat > "$HYBRID_DIR/isolinux/isolinux.cfg" << 'EOF'
+UI menu.c32
+MENU TITLE Glitch Linux iPXE Netboot (BIOS)
+MENU BACKGROUND
+MENU COLOR border 30;44 #40ffffff #a0000000 std
+MENU COLOR title 1;36;44 #ffffffff #a0000000 std
+MENU COLOR sel 7;37;40 #e0ffffff #20ffffff all
+MENU COLOR unsel 37;44 #50ffffff #a0000000 std
+MENU COLOR hotkey 1;37;44 #ffffffff #a0000000 std
+MENU COLOR tabmsg 31;40 #80ffffff #00000000 std
+MENU COLOR help 37;40 #c0ffffff #00000000 std
+
+DEFAULT ipxe
+TIMEOUT 50
+
+LABEL ipxe
+    MENU LABEL Start Glitch Linux iPXE Netboot
+    KERNEL ipxe.lkrn
+    APPEND
+
+LABEL local
+    MENU LABEL Boot from Local Disk
+    LOCALBOOT 0
+
+LABEL memtest
+    MENU LABEL Memory Test
+    KERNEL ipxe.lkrn
+    APPEND dhcp && chain http://boot.ipxe.org/memtest.ipxe || shell
+EOF
+
+# Copy UEFI boot files
+echo "   💻 Setting up UEFI boot files..."
+cp bin-x86_64-efi/ipxe.efi "$HYBRID_DIR/EFI/BOOT/BOOTX64.EFI"
+
+# Create UEFI startup script
+cat > "$HYBRID_DIR/EFI/BOOT/startup.nsh" << 'EOF'
+@echo off
+echo Glitch Linux iPXE Netboot (UEFI)
+echo Starting iPXE...
+BOOTX64.EFI
+EOF
+
+# Copy menu.c32 if available
+cp /usr/lib/syslinux/modules/bios/menu.c32 "$HYBRID_DIR/isolinux/" 2>/dev/null || \
+cp /usr/share/syslinux/menu.c32 "$HYBRID_DIR/isolinux/" 2>/dev/null || \
+echo "⚠️  menu.c32 not found - using simple menu"
+
+# Create README
+cat > "$HYBRID_DIR/README.txt" << 'EOF'
+Glitch Linux iPXE Netboot - Hybrid BIOS/UEFI ISO
+===============================================
+
+This ISO supports both BIOS and UEFI boot modes:
+
+BIOS Mode:
+- Uses isolinux bootloader
+- Boots ipxe.lkrn
+- Compatible with legacy systems
+
+UEFI Mode:
+- Uses BOOTX64.EFI
+- Native UEFI iPXE binary
+- Compatible with modern UEFI systems
+
+Network Configuration:
+- Automatically configures via DHCP
+- Chains to: http://192.168.0.198/ipxe/custom.ipxe
+- Fallback to manual configuration if needed
+
+Boot Process:
+1. Firmware detection (BIOS/UEFI)
+2. Network configuration
+3. Download and execute boot menu
+4. Select operating system
+5. Network boot selected OS
+
+For more information: https://glitchlinux.wtf
+EOF
+
+# Create hybrid ISO
+echo ""
+echo "🔨 Creating hybrid BIOS/UEFI ISO..."
+
+# Install required tools if not present
+if ! command -v genisoimage > /dev/null; then
+    echo "📦 Installing required tools..."
+    sudo apt update && sudo apt install -y genisoimage syslinux-utils
+fi
+
+# Create the hybrid ISO
+ISO_NAME="/tmp/glitch-ipxe-hybrid.iso"
+genisoimage \
+    -rational-rock \
+    -joliet \
+    -volid "GLITCH_IPXE" \
+    -b isolinux/isolinux.bin \
+    -c isolinux/boot.cat \
+    -no-emul-boot \
+    -boot-load-size 4 \
+    -boot-info-table \
+    -eltorito-alt-boot \
+    -e EFI/BOOT/BOOTX64.EFI \
+    -no-emul-boot \
+    -isohybrid-gpt-basdat \
+    -o "$ISO_NAME" \
+    "$HYBRID_DIR"
+
+if [ $? -eq 0 ] && [ -f "$ISO_NAME" ]; then
+    echo "✅ Hybrid ISO created successfully!"
+    
+    # Make it hybrid (USB bootable)
+    if command -v isohybrid > /dev/null; then
+        echo "🔧 Making ISO hybrid (USB bootable)..."
+        isohybrid --uefi "$ISO_NAME"
+        echo "✅ ISO is now hybrid (CD/USB bootable)"
+    else
+        echo "⚠️  isohybrid not found - ISO may not be USB bootable"
+    fi
+    
+    # Show file info
+    ls -lh "$ISO_NAME"
+    
+    # Cleanup temp directory
+    rm -rf "$HYBRID_DIR"
+    
+    echo ""
+    echo "🎉 Hybrid BIOS/UEFI iPXE ISO Complete!"
+    echo ""
+    echo "📀 ISO Features:"
+    echo "   ✅ BIOS/Legacy boot support (isolinux)"
+    echo "   ✅ UEFI x86_64 boot support"
+    echo "   ✅ USB/CD bootable (hybrid)"
+    echo "   ✅ Auto network configuration"
+    echo "   ✅ Chains to your menu automatically"
+    echo ""
+    echo "📁 ISO Location: $ISO_NAME"
+    echo ""
+    echo "🚀 Usage:"
+    echo "   • Burn to CD/DVD for optical boot"
+    echo "   • Write to USB: dd if=$ISO_NAME of=/dev/sdX bs=4M"
+    echo "   • Boot in VM (supports both BIOS and UEFI)"
+    echo ""
+    echo "🔧 Boot Process:"
+    echo "   1. Detects firmware type (BIOS/UEFI)"
+    echo "   2. Configures network via DHCP"
+    echo "   3. Loads your multi-distro menu"
+    echo "   4. Ready to netboot!"
+    
+else
+    echo "❌ Failed to create hybrid ISO"
+    exit 1
+fi
