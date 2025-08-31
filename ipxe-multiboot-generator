@@ -1,0 +1,639 @@
+#!/bin/bash
+# Universal iPXE Multi-Boot Generator
+# Advanced detection and configuration for Linux/Windows PE/Bootloaders
+# Based on research from Ventoy, Easy2Boot, and netboot.xyz architectures
+
+echo "Universal iPXE Multiboot Generator v2.0"
+echo "======================================="
+echo "Scanning for Linux, Windows PE, and Bootloader systems..."
+
+IPXE_ROOT="/var/www/glitchlinux.wtf/ipxe"
+WINPE_ROOT="$IPXE_ROOT/Windows-PE-ipxe"
+BASE_URL="http://85.227.185.1/ipxe"
+MENU_FILE="$IPXE_ROOT/custom.ipxe"
+BACKUP_FILE="$IPXE_ROOT/custom.ipxe.backup"
+
+# Create backup
+if [ -f "$MENU_FILE" ]; then
+    cp "$MENU_FILE" "$BACKUP_FILE"
+    echo "Backup created: $(basename $BACKUP_FILE)"
+fi
+
+# Fix permissions recursively
+echo "Fixing permissions recursively..."
+chown -R www-data:www-data "$IPXE_ROOT"
+find "$IPXE_ROOT" -type d -exec chmod 755 {} \;
+find "$IPXE_ROOT" -type f -exec chmod 644 {} \;
+
+# Initialize counters
+linux_count=0
+winpe_count=0
+bootloader_count=0
+distro_entries=""
+winpe_entries=""
+bootloader_entries=""
+
+# Advanced distro detection based on research
+detect_distro_family() {
+    local distro_name="$1"
+    local distro_path="$2"
+    
+    # Convert to lowercase for pattern matching
+    local name_lower=$(echo "$distro_name" | tr '[:upper:]' '[:lower:]')
+    
+    # Security/Privacy distributions
+    if [[ "$name_lower" =~ (tails|whonix|kodachi|qubes) ]]; then
+        echo "security"
+        return
+    fi
+    
+    # Rescue/Recovery systems
+    if [[ "$name_lower" =~ (systemrescue|rescuezilla|clonezilla|gparted|boot.*repair|redo.*rescue|rescatux|hbcd) ]]; then
+        echo "rescue"
+        return
+    fi
+    
+    # Debian family detection (including derivatives)
+    if [[ "$name_lower" =~ (debian|ubuntu|mint|mx|antiX|sparky|parrot|kali|deepin|zorin|elementary|pop) ]] ||
+       [ -f "$distro_path/live/filesystem.squashfs" ] ||
+       [ -f "$distro_path/.disk/info" ]; then
+        
+        # Ubuntu/Casper vs Debian/live detection
+        if [[ "$name_lower" =~ (ubuntu|mint|zorin|elementary|pop) ]] ||
+           [ -d "$distro_path/casper" ]; then
+            echo "ubuntu"
+        else
+            echo "debian"
+        fi
+        return
+    fi
+    
+    # Arch family
+    if [[ "$name_lower" =~ (arch|manjaro|endeavour|garuda|blackarch) ]] ||
+       [ -f "$distro_path/arch/boot/x86_64/vmlinuz-linux" ]; then
+        echo "arch"
+        return
+    fi
+    
+    # RedHat family
+    if [[ "$name_lower" =~ (fedora|rhel|centos|rocky|alma|opensuse) ]] ||
+       [ -d "$distro_path/LiveOS" ]; then
+        echo "redhat"
+        return
+    fi
+    
+    # Gentoo family
+    if [[ "$name_lower" =~ (gentoo|funtoo|calculate) ]]; then
+        echo "gentoo"
+        return
+    fi
+    
+    # Slackware family
+    if [[ "$name_lower" =~ (slackware|salix|vector) ]]; then
+        echo "slackware"
+        return
+    fi
+    
+    # Default fallback
+    echo "generic"
+}
+
+# Advanced boot parameter configuration
+get_boot_parameters() {
+    local family="$1"
+    local distro_name="$2"
+    local name_lower=$(echo "$distro_name" | tr '[:upper:]' '[:lower:]')
+    
+    case "$family" in
+        "security")
+            if [[ "$name_lower" =~ tails ]]; then
+                echo "boot=live config live-media=removable nopersistence noprompt timezone=Etc/UTC noautologin module=Tails vsyscall=none page_poison=1 init_on_alloc=1 init_on_free=1 mds=full,nosmt"
+            else
+                echo "boot=live components quiet splash"
+            fi
+            ;;
+        "rescue")
+            if [[ "$name_lower" =~ systemrescue ]]; then
+                echo "archisobasedir=sysresccd copytoram"
+            elif [[ "$name_lower" =~ gparted ]]; then
+                echo "boot=live union=overlay username=user config components quiet splash"
+            elif [[ "$name_lower" =~ clonezilla ]]; then
+                echo "boot=live union=overlay username=user config components quiet splash ocs_live_run=\"ocs-live-general\""
+            else
+                echo "boot=live components quiet splash"
+            fi
+            ;;
+        "ubuntu")
+            echo "boot=casper maybe-ubiquity quiet splash"
+            ;;
+        "debian")
+            echo "boot=live components quiet splash"
+            ;;
+        "arch")
+            echo "archisobasedir=arch archisolabel=ARCH_$(date +%Y%m)"
+            ;;
+        "redhat")
+            echo "rd.live.image quiet"
+            ;;
+        "gentoo")
+            echo "dokeymap looptype=squashfs loop=/image.squashfs cdroot"
+            ;;
+        *)
+            echo "boot=live components quiet splash"
+            ;;
+    esac
+}
+
+# Enhanced file detection with multiple search patterns
+find_kernel_advanced() {
+    local distro_path="$1"
+    local search_paths=("$distro_path" "$distro_path/live" "$distro_path/casper" "$distro_path/boot" "$distro_path/arch/boot/x86_64" "$distro_path/isolinux" "$distro_path/syslinux")
+    
+    # Kernel naming patterns by priority
+    local kernel_patterns=("vmlinuz*" "bzImage*" "linux*" "kernel*" "vmlinux*")
+    
+    for search_path in "${search_paths[@]}"; do
+        [ ! -d "$search_path" ] && continue
+        
+        for pattern in "${kernel_patterns[@]}"; do
+            local found_kernel=$(find "$search_path" -maxdepth 1 -name "$pattern" -type f | head -1)
+            if [ -n "$found_kernel" ]; then
+                if [ "$search_path" = "$distro_path" ]; then
+                    basename "$found_kernel"
+                else
+                    echo "$(basename "$search_path")/$(basename "$found_kernel")"
+                fi
+                return 0
+            fi
+        done
+    done
+    return 1
+}
+
+# Enhanced initrd detection
+find_initrd_advanced() {
+    local distro_path="$1"
+    local search_paths=("$distro_path" "$distro_path/live" "$distro_path/casper" "$distro_path/boot" "$distro_path/arch/boot/x86_64" "$distro_path/isolinux" "$distro_path/syslinux")
+    
+    # InitRD naming patterns by priority
+    local initrd_patterns=("initrd.img*" "initrd*" "initramfs*" "initrfs*")
+    
+    for search_path in "${search_paths[@]}"; do
+        [ ! -d "$search_path" ] && continue
+        
+        for pattern in "${initrd_patterns[@]}"; do
+            local found_initrd=$(find "$search_path" -maxdepth 1 -name "$pattern" -type f | head -1)
+            if [ -n "$found_initrd" ]; then
+                if [ "$search_path" = "$distro_path" ]; then
+                    basename "$found_initrd"
+                else
+                    echo "$(basename "$search_path")/$(basename "$found_initrd")"
+                fi
+                return 0
+            fi
+        done
+    done
+    return 1
+}
+
+# Enhanced filesystem detection
+find_filesystem_advanced() {
+    local distro_path="$1"
+    local search_paths=("$distro_path/live" "$distro_path/casper" "$distro_path/LiveOS" "$distro_path")
+    
+    for search_path in "${search_paths[@]}"; do
+        [ ! -d "$search_path" ] && continue
+        
+        # Look for filesystem files in order of preference
+        for fs_file in filesystem.squashfs squashfs.img rootfs.img ext3fs.img; do
+            if [ -f "$search_path/$fs_file" ]; then
+                if [ "$search_path" = "$distro_path" ]; then
+                    echo "$fs_file"
+                else
+                    echo "$(basename "$search_path")/$fs_file"
+                fi
+                return 0
+            fi
+        done
+    done
+    return 1
+}
+
+# Windows PE detection and configuration
+detect_winpe_systems() {
+    echo "Scanning for Windows PE systems..."
+    
+    if [ ! -d "$WINPE_ROOT" ]; then
+        echo "Windows PE directory not found: $WINPE_ROOT"
+        return
+    fi
+    
+    for winpe_dir in "$WINPE_ROOT"/*/; do
+        [ ! -d "$winpe_dir" ] && continue
+        winpe_name=$(basename "$winpe_dir")
+        
+        echo "Checking Windows PE: $winpe_name"
+        
+        # Check for required Windows PE files
+        local has_bcd=false
+        local has_sdi=false  
+        local has_wim=false
+        local bcd_path=""
+        local sdi_path=""
+        local wim_path=""
+        
+        # Search for BCD file
+        for bcd_loc in "boot/bcd" "boot/BCD" "efi/microsoft/boot/bcd" "Boot/BCD"; do
+            if [ -f "$winpe_dir/$bcd_loc" ]; then
+                has_bcd=true
+                bcd_path="$bcd_loc"
+                break
+            fi
+        done
+        
+        # Search for boot.sdi
+        for sdi_loc in "boot/boot.sdi" "Boot/boot.sdi" "SDI/boot.sdi"; do
+            if [ -f "$winpe_dir/$sdi_loc" ]; then
+                has_sdi=true
+                sdi_path="$sdi_loc"
+                break
+            fi
+        done
+        
+        # Search for WIM file
+        for wim_loc in "sources/boot.wim" "Sources/boot.wim" "WIM/boot.wim"; do
+            if [ -f "$winpe_dir/$wim_loc" ]; then
+                has_wim=true
+                wim_path="$wim_loc"
+                break
+            fi
+        done
+        
+        if [ "$has_bcd" = true ] && [ "$has_sdi" = true ] && [ "$has_wim" = true ]; then
+            echo " ✓ Valid Windows PE: $winpe_name"
+            echo "   BCD: $bcd_path"
+            echo "   SDI: $sdi_path"  
+            echo "   WIM: $wim_path"
+            
+            # Add to Windows PE menu
+            local item_base=$(echo "$winpe_name" | tr '-' '_' | tr '.' '_' | tr ' ' '_')
+            
+            cat >> "$MENU_FILE" << WINPE_ITEM
+item winpe_${item_base} ${winpe_name} (Windows PE)
+WINPE_ITEM
+
+            # Create Windows PE boot entries
+            winpe_entries="${winpe_entries}
+:winpe_${item_base}
+echo Loading ${winpe_name}...
+echo Downloading Windows boot files via HTTP...
+echo This may take some time for large WIM files...
+echo
+kernel \${base_url}/wimboot
+initrd \${base_url}/Windows-PE-ipxe/${winpe_name}/${bcd_path} BCD
+initrd \${base_url}/Windows-PE-ipxe/${winpe_name}/${sdi_path} boot.sdi
+initrd \${base_url}/Windows-PE-ipxe/${winpe_name}/${wim_path} boot.wim
+boot || goto start
+
+"
+            ((winpe_count++))
+        else
+            echo " ✗ Incomplete Windows PE: $winpe_name (missing files)"
+        fi
+    done
+}
+
+# Create advanced boot menu entries
+create_advanced_boot_entries() {
+    local distro_name="$1"
+    local kernel_file="$2" 
+    local initrd_file="$3"
+    local filesystem_file="$4"
+    local boot_params="$5"
+    local family="$6"
+    
+    local item_base=$(echo "$distro_name" | tr '-' '_' | tr '.' '_' | tr ' ' '_')
+    local kernel_basename=$(basename "$kernel_file")
+    
+    # Create submenu entry
+    cat >> "$MENU_FILE" << LINUX_ITEM
+item ${item_base}_menu ${distro_name} >
+LINUX_ITEM
+
+    # Generate boot entries based on distribution family
+    distro_entries="${distro_entries}
+:${item_base}_menu
+clear submenu_choice
+menu $distro_name Boot Options
+item --gap -- Boot Methods"
+
+    # Standard boot methods
+    distro_entries="${distro_entries}
+item ${item_base}_standard Standard Boot
+item ${item_base}_fetch Network Fetch (Recommended)"
+
+    # Add ToRAM option for most distros
+    if [[ "$family" != "arch" ]]; then
+        distro_entries="${distro_entries}
+item ${item_base}_toram Load to RAM"
+    fi
+    
+    # Add debug mode
+    distro_entries="${distro_entries}
+item ${item_base}_debug Debug Mode"
+    
+    # Special options based on family
+    case "$family" in
+        "security")
+            distro_entries="${distro_entries}
+item ${item_base}_forensic Forensic Mode (No Swap)"
+            ;;
+        "rescue")
+            distro_entries="${distro_entries}
+item ${item_base}_copytoram Copy to RAM
+item ${item_base}_findroot Find Installed Systems"
+            ;;
+    esac
+    
+    distro_entries="${distro_entries}
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo \${cls}
+goto \${submenu_choice}
+
+:${item_base}_standard
+echo Loading $distro_name (Standard)...
+kernel \${base_url}/$distro_name/$kernel_file
+initrd \${base_url}/$distro_name/$initrd_file
+imgargs $kernel_basename $boot_params quiet splash ip=dhcp
+boot || goto ${item_base}_menu
+
+:${item_base}_fetch
+echo Loading $distro_name (Network Fetch)...
+kernel \${base_url}/$distro_name/$kernel_file
+initrd \${base_url}/$distro_name/$initrd_file"
+
+    if [ -n "$filesystem_file" ]; then
+        distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file ip=dhcp"
+    else
+        distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params ip=dhcp"
+    fi
+    
+    distro_entries="${distro_entries}
+boot || goto ${item_base}_menu"
+
+    # ToRAM option
+    if [[ "$family" != "arch" ]]; then
+        distro_entries="${distro_entries}
+
+:${item_base}_toram
+echo Loading $distro_name (Load to RAM)...
+kernel \${base_url}/$distro_name/$kernel_file
+initrd \${base_url}/$distro_name/$initrd_file"
+
+        if [ -n "$filesystem_file" ]; then
+            distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file toram ip=dhcp"
+        else
+            distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params toram ip=dhcp"
+        fi
+        
+        distro_entries="${distro_entries}
+boot || goto ${item_base}_menu"
+    fi
+
+    # Debug mode
+    distro_entries="${distro_entries}
+
+:${item_base}_debug
+echo Loading $distro_name (Debug Mode)...
+kernel \${base_url}/$distro_name/$kernel_file
+initrd \${base_url}/$distro_name/$initrd_file"
+
+    if [ -n "$filesystem_file" ]; then
+        distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file debug ip=dhcp"
+    else
+        distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params debug ip=dhcp"
+    fi
+    
+    distro_entries="${distro_entries}
+boot || goto ${item_base}_menu"
+
+    # Special boot modes based on family
+    case "$family" in
+        "security")
+            distro_entries="${distro_entries}
+
+:${item_base}_forensic
+echo Loading $distro_name (Forensic Mode)...
+kernel \${base_url}/$distro_name/$kernel_file
+initrd \${base_url}/$distro_name/$initrd_file"
+            if [ -n "$filesystem_file" ]; then
+                distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file noswap ip=dhcp"
+            else
+                distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params noswap ip=dhcp"
+            fi
+            distro_entries="${distro_entries}
+boot || goto ${item_base}_menu"
+            ;;
+        "rescue")
+            distro_entries="${distro_entries}
+
+:${item_base}_copytoram
+echo Loading $distro_name (Copy to RAM)...
+kernel \${base_url}/$distro_name/$kernel_file
+initrd \${base_url}/$distro_name/$initrd_file"
+            if [ -n "$filesystem_file" ]; then
+                distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file copytoram ip=dhcp"
+            else
+                distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params copytoram ip=dhcp"
+            fi
+            distro_entries="${distro_entries}
+boot || goto ${item_base}_menu
+
+:${item_base}_findroot
+echo Loading $distro_name (Find Root Systems)...
+kernel \${base_url}/$distro_name/$kernel_file
+initrd \${base_url}/$distro_name/$initrd_file"
+            if [ -n "$filesystem_file" ]; then
+                distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file findroot ip=dhcp"
+            else
+                distro_entries="${distro_entries}
+imgargs $kernel_basename $boot_params findroot ip=dhcp"
+            fi
+            distro_entries="${distro_entries}
+boot || goto ${item_base}_menu"
+            ;;
+    esac
+
+    distro_entries="${distro_entries}
+
+:back_to_main
+goto start
+"
+}
+
+# Start building the menu
+cat > "$MENU_FILE" << 'MENU_START'
+#!ipxe
+# Universal Multi-Distro iPXE Menu v2.0
+# Supports Linux, Windows PE, and Bootloaders
+set base_url http://85.227.185.1/ipxe
+
+:start
+clear menu_choice
+menu Universal iPXE Multiboot System
+item --gap -- Windows PE Systems
+MENU_START
+
+# Detect and configure Windows PE systems
+detect_winpe_systems
+
+# Add Linux distributions section
+cat >> "$MENU_FILE" << 'LINUX_HEADER'
+item --gap -- Linux Distributions
+LINUX_HEADER
+
+# Scan for Linux distributions
+echo "Scanning for Linux distributions..."
+
+for distro_dir in "$IPXE_ROOT"/*/; do
+    [ ! -d "$distro_dir" ] && continue
+    distro_name=$(basename "$distro_dir")
+    
+    # Skip system directories
+    [[ "$distro_name" =~ ^(boot|EFI|isolinux|syslinux|MICROTECH-winPE|Windows-PE-ipxe)$ ]] && continue
+    
+    echo "Scanning: $distro_name"
+    
+    # Detect distribution family
+    family=$(detect_distro_family "$distro_name" "$distro_dir")
+    echo "  Detected family: $family"
+    
+    # Find boot files
+    kernel_file=$(find_kernel_advanced "$distro_dir")
+    initrd_file=$(find_initrd_advanced "$distro_dir")
+    filesystem_file=$(find_filesystem_advanced "$distro_dir")
+    
+    if [ -n "$kernel_file" ] && [ -n "$initrd_file" ]; then
+        echo "  ✓ Kernel: $kernel_file"
+        echo "  ✓ InitRD: $initrd_file"
+        [ -n "$filesystem_file" ] && echo "  ✓ Filesystem: $filesystem_file"
+        
+        # Get boot parameters
+        boot_params=$(get_boot_parameters "$family" "$distro_name")
+        echo "  ✓ Boot params: $boot_params"
+        
+        # Create advanced boot entries
+        create_advanced_boot_entries "$distro_name" "$kernel_file" "$initrd_file" "$filesystem_file" "$boot_params" "$family"
+        
+        ((linux_count++))
+    else
+        echo "  ✗ Missing required files"
+    fi
+done
+
+# Add utilities section
+cat >> "$MENU_FILE" << 'MENU_UTILS'
+item --gap -- System Tools
+item boot_info Show Boot Information
+item shell_access iPXE Shell Access
+item --gap -- System Control
+item local_boot Boot from Local Disk
+item reboot_system Reboot System
+item shutdown_system Shutdown System
+choose menu_choice || goto start
+echo ${cls}
+goto ${menu_choice}
+MENU_UTILS
+
+# Add all boot entries
+echo "$winpe_entries" >> "$MENU_FILE"
+echo "$distro_entries" >> "$MENU_FILE"
+
+# Add utility functions
+cat >> "$MENU_FILE" << 'MENU_FINAL'
+:boot_info
+echo Universal iPXE Multiboot System v2.0
+echo =====================================
+echo Base URL: ${base_url}
+echo
+echo Available systems:
+MENU_FINAL
+
+# Add system counts to boot info
+if [ $winpe_count -gt 0 ]; then
+    echo "echo Windows PE Systems: $winpe_count" >> "$MENU_FILE"
+fi
+if [ $linux_count -gt 0 ]; then
+    echo "echo Linux Distributions: $linux_count" >> "$MENU_FILE"
+fi
+
+cat >> "$MENU_FILE" << 'MENU_END'
+echo
+echo Advanced Features:
+echo - Multi-architecture support (BIOS/UEFI)
+echo - Network filesystem loading via HTTP
+echo - Memory optimization (ToRAM/CopyToRAM)
+echo - Debug and forensic modes
+echo - Rescue system integration
+echo - Windows PE wimboot support
+echo
+echo Press any key to return to menu...
+prompt
+goto start
+
+:shell_access
+echo Dropping to iPXE shell...
+echo Type 'exit' to return to menu
+shell
+goto start
+
+:local_boot
+echo Booting from local disk...
+sanboot --no-describe --drive 0x80 || goto start
+
+:reboot_system
+echo Rebooting system...
+reboot
+
+:shutdown_system  
+echo Shutting down system...
+poweroff
+MENU_END
+
+# Set final permissions
+chown www-data:www-data "$MENU_FILE"
+chmod 644 "$MENU_FILE"
+
+# Summary report
+echo
+echo "Universal iPXE Multiboot Generator - Summary"
+echo "==========================================="
+echo "✓ Windows PE Systems: $winpe_count"
+echo "✓ Linux Distributions: $linux_count" 
+echo "✓ Total bootable systems: $((winpe_count + linux_count))"
+echo
+echo "Features implemented:"
+echo "• Advanced distro family detection (Security, Rescue, Ubuntu, Debian, Arch, etc.)"
+echo "• Multiple boot modes per system (Standard, Fetch, ToRAM, Debug, Forensic)"
+echo "• Windows PE wimboot integration with auto-detection"
+echo "• Network filesystem loading with HTTP fetch"
+echo "• Memory optimization options"
+echo "• Error handling and fallback mechanisms"
+echo
+echo "Menu file: $MENU_FILE"
+echo "Backup: $BACKUP_FILE"
+echo
+echo "Boot your iPXE system to test the enhanced multiboot menu!"

@@ -1,0 +1,5 @@
+sudo bash /usr/local/bin/ipxe-multiboot-generator 
+sleep 4
+echo "IPXE MultiBoot Menu Updated!"
+sync
+exit 

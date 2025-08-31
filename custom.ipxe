@@ -1,0 +1,838 @@
+#!ipxe
+# Universal Multi-Distro iPXE Menu v2.0
+# Supports Linux, Windows PE, and Bootloaders
+set base_url http://85.227.185.1/ipxe
+#--configure --foreground 0xffffff --background 0x000000
+:start
+clear menu_choice
+menu Universal iPXE Multiboot System
+item --gap -- Windows PE Systems
+item winpe_DiskGenius_Pro_v6_0_1_1645 DiskGenius_Pro_v6.0.1.1645 (Windows PE)
+item winpe_HBCD_PE_x64 HBCD_PE_x64 (Windows PE)
+item winpe_MicroTech_Relay_Compression_v1 MicroTech-Relay-Compression-v1 (Windows PE)
+item winpe_Windows_10_PE_AnkhTechV1 Windows-10-PE-AnkhTechV1 (Windows PE)
+item winpe_Windows_11_PE_x64_En Windows_11_PE_x64_En (Windows PE)
+item winpe_WinPE_Lite_x64_V3 WinPE_Lite_x64_V3 (Windows PE)
+item --gap -- Linux Distributions
+item autoFS_v1_1_menu autoFS-v1.1 >
+item Bonsai_xfce_v12_menu Bonsai-xfce-v12 >
+item Boot_Repair_Disk_64bit_menu Boot-Repair-Disk-64bit >
+item DietPi_Nano_v1_menu DietPi-Nano-v1 >
+item Expirion_6_0_Xfce_menu Expirion-6.0-Xfce >
+item GLITCH_LINUX_KDE_23_menu GLITCH-LINUX-KDE-23 >
+item GNOPPIX_live_4_2_1_menu GNOPPIX-live-4.2.1 >
+item Kali_Everyday_Xfce_Respin_menu Kali-Everyday-Xfce-Respin >
+item kali_linux_2025_1c_live_menu kali-linux-2025.1c-live >
+item Linux_Lite_7_6_menu Linux Lite 7.6 >
+item MiniDeb_BookWorm_v1_menu MiniDeb-BookWorm-v1 >
+item Redo_Rescue_4_0_0_menu Redo_Rescue_4.0.0 >
+item Rescatux0_74_menu Rescatux0.74 >
+item TAILS_6_18_menu TAILS.6.18 >
+item --gap -- System Tools
+item boot_info Show Boot Information
+item shell_access iPXE Shell Access
+item --gap -- System Control
+item local_boot Boot from Local Disk
+item reboot_system Reboot System
+item shutdown_system Shutdown System
+choose menu_choice || goto start
+echo ${cls}
+goto ${menu_choice}
+
+:winpe_DiskGenius_Pro_v6_0_1_1645
+echo Loading DiskGenius_Pro_v6.0.1.1645...
+echo Downloading Windows boot files via HTTP...
+echo This may take some time for large WIM files...
+echo
+kernel ${base_url}/wimboot
+initrd ${base_url}/Windows-PE-ipxe/DiskGenius_Pro_v6.0.1.1645/boot/bcd BCD
+initrd ${base_url}/Windows-PE-ipxe/DiskGenius_Pro_v6.0.1.1645/boot/boot.sdi boot.sdi
+initrd ${base_url}/Windows-PE-ipxe/DiskGenius_Pro_v6.0.1.1645/sources/boot.wim boot.wim
+boot || goto start
+
+
+:winpe_HBCD_PE_x64
+echo Loading HBCD_PE_x64...
+echo Downloading Windows boot files via HTTP...
+echo This may take some time for large WIM files...
+echo
+kernel ${base_url}/wimboot
+initrd ${base_url}/Windows-PE-ipxe/HBCD_PE_x64/boot/bcd BCD
+initrd ${base_url}/Windows-PE-ipxe/HBCD_PE_x64/boot/boot.sdi boot.sdi
+initrd ${base_url}/Windows-PE-ipxe/HBCD_PE_x64/sources/boot.wim boot.wim
+boot || goto start
+
+
+:winpe_MicroTech_Relay_Compression_v1
+echo Loading MicroTech-Relay-Compression-v1...
+echo Downloading Windows boot files via HTTP...
+echo This may take some time for large WIM files...
+echo
+kernel ${base_url}/wimboot
+initrd ${base_url}/Windows-PE-ipxe/MicroTech-Relay-Compression-v1/boot/bcd BCD
+initrd ${base_url}/Windows-PE-ipxe/MicroTech-Relay-Compression-v1/boot/boot.sdi boot.sdi
+initrd ${base_url}/Windows-PE-ipxe/MicroTech-Relay-Compression-v1/sources/boot.wim boot.wim
+boot || goto start
+
+
+:winpe_Windows_10_PE_AnkhTechV1
+echo Loading Windows-10-PE-AnkhTechV1...
+echo Downloading Windows boot files via HTTP...
+echo This may take some time for large WIM files...
+echo
+kernel ${base_url}/wimboot
+initrd ${base_url}/Windows-PE-ipxe/Windows-10-PE-AnkhTechV1/boot/bcd BCD
+initrd ${base_url}/Windows-PE-ipxe/Windows-10-PE-AnkhTechV1/boot/boot.sdi boot.sdi
+initrd ${base_url}/Windows-PE-ipxe/Windows-10-PE-AnkhTechV1/sources/boot.wim boot.wim
+boot || goto start
+
+
+:winpe_Windows_11_PE_x64_En
+echo Loading Windows_11_PE_x64_En...
+echo Downloading Windows boot files via HTTP...
+echo This may take some time for large WIM files...
+echo
+kernel ${base_url}/wimboot
+initrd ${base_url}/Windows-PE-ipxe/Windows_11_PE_x64_En/boot/BCD BCD
+initrd ${base_url}/Windows-PE-ipxe/Windows_11_PE_x64_En/boot/boot.sdi boot.sdi
+initrd ${base_url}/Windows-PE-ipxe/Windows_11_PE_x64_En/sources/boot.wim boot.wim
+boot || goto start
+
+
+:winpe_WinPE_Lite_x64_V3
+echo Loading WinPE_Lite_x64_V3...
+echo Downloading Windows boot files via HTTP...
+echo This may take some time for large WIM files...
+echo
+kernel ${base_url}/wimboot
+initrd ${base_url}/Windows-PE-ipxe/WinPE_Lite_x64_V3/boot/BCD BCD
+initrd ${base_url}/Windows-PE-ipxe/WinPE_Lite_x64_V3/boot/boot.sdi boot.sdi
+initrd ${base_url}/Windows-PE-ipxe/WinPE_Lite_x64_V3/sources/boot.wim boot.wim
+boot || goto start
+
+
+
+:autoFS_v1_1_menu
+clear submenu_choice
+menu autoFS-v1.1 Boot Options
+item --gap -- Boot Methods
+item autoFS_v1_1_standard Standard Boot
+item autoFS_v1_1_fetch Network Fetch (Recommended)
+item autoFS_v1_1_toram Load to RAM
+item autoFS_v1_1_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:autoFS_v1_1_standard
+echo Loading autoFS-v1.1 (Standard)...
+kernel ${base_url}/autoFS-v1.1/live/vmlinuz
+initrd ${base_url}/autoFS-v1.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash quiet splash ip=dhcp
+boot || goto autoFS_v1_1_menu
+
+:autoFS_v1_1_fetch
+echo Loading autoFS-v1.1 (Network Fetch)...
+kernel ${base_url}/autoFS-v1.1/live/vmlinuz
+initrd ${base_url}/autoFS-v1.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/autoFS-v1.1/live/filesystem.squashfs ip=dhcp
+boot || goto autoFS_v1_1_menu
+
+:autoFS_v1_1_toram
+echo Loading autoFS-v1.1 (Load to RAM)...
+kernel ${base_url}/autoFS-v1.1/live/vmlinuz
+initrd ${base_url}/autoFS-v1.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/autoFS-v1.1/live/filesystem.squashfs toram ip=dhcp
+boot || goto autoFS_v1_1_menu
+
+:autoFS_v1_1_debug
+echo Loading autoFS-v1.1 (Debug Mode)...
+kernel ${base_url}/autoFS-v1.1/live/vmlinuz
+initrd ${base_url}/autoFS-v1.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/autoFS-v1.1/live/filesystem.squashfs debug ip=dhcp
+boot || goto autoFS_v1_1_menu
+
+:back_to_main
+goto start
+
+:Bonsai_xfce_v12_menu
+clear submenu_choice
+menu Bonsai-xfce-v12 Boot Options
+item --gap -- Boot Methods
+item Bonsai_xfce_v12_standard Standard Boot
+item Bonsai_xfce_v12_fetch Network Fetch (Recommended)
+item Bonsai_xfce_v12_toram Load to RAM
+item Bonsai_xfce_v12_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:Bonsai_xfce_v12_standard
+echo Loading Bonsai-xfce-v12 (Standard)...
+kernel ${base_url}/Bonsai-xfce-v12/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/Bonsai-xfce-v12/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash quiet splash ip=dhcp
+boot || goto Bonsai_xfce_v12_menu
+
+:Bonsai_xfce_v12_fetch
+echo Loading Bonsai-xfce-v12 (Network Fetch)...
+kernel ${base_url}/Bonsai-xfce-v12/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/Bonsai-xfce-v12/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/Bonsai-xfce-v12/live/filesystem.squashfs ip=dhcp
+boot || goto Bonsai_xfce_v12_menu
+
+:Bonsai_xfce_v12_toram
+echo Loading Bonsai-xfce-v12 (Load to RAM)...
+kernel ${base_url}/Bonsai-xfce-v12/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/Bonsai-xfce-v12/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/Bonsai-xfce-v12/live/filesystem.squashfs toram ip=dhcp
+boot || goto Bonsai_xfce_v12_menu
+
+:Bonsai_xfce_v12_debug
+echo Loading Bonsai-xfce-v12 (Debug Mode)...
+kernel ${base_url}/Bonsai-xfce-v12/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/Bonsai-xfce-v12/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/Bonsai-xfce-v12/live/filesystem.squashfs debug ip=dhcp
+boot || goto Bonsai_xfce_v12_menu
+
+:back_to_main
+goto start
+
+:Boot_Repair_Disk_64bit_menu
+clear submenu_choice
+menu Boot-Repair-Disk-64bit Boot Options
+item --gap -- Boot Methods
+item Boot_Repair_Disk_64bit_standard Standard Boot
+item Boot_Repair_Disk_64bit_fetch Network Fetch (Recommended)
+item Boot_Repair_Disk_64bit_toram Load to RAM
+item Boot_Repair_Disk_64bit_debug Debug Mode
+item Boot_Repair_Disk_64bit_copytoram Copy to RAM
+item Boot_Repair_Disk_64bit_findroot Find Installed Systems
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:Boot_Repair_Disk_64bit_standard
+echo Loading Boot-Repair-Disk-64bit (Standard)...
+kernel ${base_url}/Boot-Repair-Disk-64bit/casper/vmlinuz
+initrd ${base_url}/Boot-Repair-Disk-64bit/casper/initrd.lz
+imgargs vmlinuz boot=live components quiet splash quiet splash ip=dhcp
+boot || goto Boot_Repair_Disk_64bit_menu
+
+:Boot_Repair_Disk_64bit_fetch
+echo Loading Boot-Repair-Disk-64bit (Network Fetch)...
+kernel ${base_url}/Boot-Repair-Disk-64bit/casper/vmlinuz
+initrd ${base_url}/Boot-Repair-Disk-64bit/casper/initrd.lz
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Boot-Repair-Disk-64bit/casper/filesystem.squashfs ip=dhcp
+boot || goto Boot_Repair_Disk_64bit_menu
+
+:Boot_Repair_Disk_64bit_toram
+echo Loading Boot-Repair-Disk-64bit (Load to RAM)...
+kernel ${base_url}/Boot-Repair-Disk-64bit/casper/vmlinuz
+initrd ${base_url}/Boot-Repair-Disk-64bit/casper/initrd.lz
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Boot-Repair-Disk-64bit/casper/filesystem.squashfs toram ip=dhcp
+boot || goto Boot_Repair_Disk_64bit_menu
+
+:Boot_Repair_Disk_64bit_debug
+echo Loading Boot-Repair-Disk-64bit (Debug Mode)...
+kernel ${base_url}/Boot-Repair-Disk-64bit/casper/vmlinuz
+initrd ${base_url}/Boot-Repair-Disk-64bit/casper/initrd.lz
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Boot-Repair-Disk-64bit/casper/filesystem.squashfs debug ip=dhcp
+boot || goto Boot_Repair_Disk_64bit_menu
+
+:Boot_Repair_Disk_64bit_copytoram
+echo Loading Boot-Repair-Disk-64bit (Copy to RAM)...
+kernel ${base_url}/Boot-Repair-Disk-64bit/casper/vmlinuz
+initrd ${base_url}/Boot-Repair-Disk-64bit/casper/initrd.lz
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Boot-Repair-Disk-64bit/casper/filesystem.squashfs copytoram ip=dhcp
+boot || goto Boot_Repair_Disk_64bit_menu
+
+:Boot_Repair_Disk_64bit_findroot
+echo Loading Boot-Repair-Disk-64bit (Find Root Systems)...
+kernel ${base_url}/Boot-Repair-Disk-64bit/casper/vmlinuz
+initrd ${base_url}/Boot-Repair-Disk-64bit/casper/initrd.lz
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Boot-Repair-Disk-64bit/casper/filesystem.squashfs findroot ip=dhcp
+boot || goto Boot_Repair_Disk_64bit_menu
+
+:back_to_main
+goto start
+
+:DietPi_Nano_v1_menu
+clear submenu_choice
+menu DietPi-Nano-v1 Boot Options
+item --gap -- Boot Methods
+item DietPi_Nano_v1_standard Standard Boot
+item DietPi_Nano_v1_fetch Network Fetch (Recommended)
+item DietPi_Nano_v1_toram Load to RAM
+item DietPi_Nano_v1_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:DietPi_Nano_v1_standard
+echo Loading DietPi-Nano-v1 (Standard)...
+kernel ${base_url}/DietPi-Nano-v1/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/DietPi-Nano-v1/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash quiet splash ip=dhcp
+boot || goto DietPi_Nano_v1_menu
+
+:DietPi_Nano_v1_fetch
+echo Loading DietPi-Nano-v1 (Network Fetch)...
+kernel ${base_url}/DietPi-Nano-v1/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/DietPi-Nano-v1/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/DietPi-Nano-v1/filesystem.squashfs ip=dhcp
+boot || goto DietPi_Nano_v1_menu
+
+:DietPi_Nano_v1_toram
+echo Loading DietPi-Nano-v1 (Load to RAM)...
+kernel ${base_url}/DietPi-Nano-v1/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/DietPi-Nano-v1/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/DietPi-Nano-v1/filesystem.squashfs toram ip=dhcp
+boot || goto DietPi_Nano_v1_menu
+
+:DietPi_Nano_v1_debug
+echo Loading DietPi-Nano-v1 (Debug Mode)...
+kernel ${base_url}/DietPi-Nano-v1/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/DietPi-Nano-v1/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/DietPi-Nano-v1/filesystem.squashfs debug ip=dhcp
+boot || goto DietPi_Nano_v1_menu
+
+:back_to_main
+goto start
+
+:Expirion_6_0_Xfce_menu
+clear submenu_choice
+menu Expirion-6.0-Xfce Boot Options
+item --gap -- Boot Methods
+item Expirion_6_0_Xfce_standard Standard Boot
+item Expirion_6_0_Xfce_fetch Network Fetch (Recommended)
+item Expirion_6_0_Xfce_toram Load to RAM
+item Expirion_6_0_Xfce_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:Expirion_6_0_Xfce_standard
+echo Loading Expirion-6.0-Xfce (Standard)...
+kernel ${base_url}/Expirion-6.0-Xfce/live/vmlinuz
+initrd ${base_url}/Expirion-6.0-Xfce/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash quiet splash ip=dhcp
+boot || goto Expirion_6_0_Xfce_menu
+
+:Expirion_6_0_Xfce_fetch
+echo Loading Expirion-6.0-Xfce (Network Fetch)...
+kernel ${base_url}/Expirion-6.0-Xfce/live/vmlinuz
+initrd ${base_url}/Expirion-6.0-Xfce/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Expirion-6.0-Xfce/live/filesystem.squashfs ip=dhcp
+boot || goto Expirion_6_0_Xfce_menu
+
+:Expirion_6_0_Xfce_toram
+echo Loading Expirion-6.0-Xfce (Load to RAM)...
+kernel ${base_url}/Expirion-6.0-Xfce/live/vmlinuz
+initrd ${base_url}/Expirion-6.0-Xfce/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Expirion-6.0-Xfce/live/filesystem.squashfs toram ip=dhcp
+boot || goto Expirion_6_0_Xfce_menu
+
+:Expirion_6_0_Xfce_debug
+echo Loading Expirion-6.0-Xfce (Debug Mode)...
+kernel ${base_url}/Expirion-6.0-Xfce/live/vmlinuz
+initrd ${base_url}/Expirion-6.0-Xfce/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Expirion-6.0-Xfce/live/filesystem.squashfs debug ip=dhcp
+boot || goto Expirion_6_0_Xfce_menu
+
+:back_to_main
+goto start
+
+:GLITCH_LINUX_KDE_23_menu
+clear submenu_choice
+menu GLITCH-LINUX-KDE-23 Boot Options
+item --gap -- Boot Methods
+item GLITCH_LINUX_KDE_23_standard Standard Boot
+item GLITCH_LINUX_KDE_23_fetch Network Fetch (Recommended)
+item GLITCH_LINUX_KDE_23_toram Load to RAM
+item GLITCH_LINUX_KDE_23_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:GLITCH_LINUX_KDE_23_standard
+echo Loading GLITCH-LINUX-KDE-23 (Standard)...
+kernel ${base_url}/GLITCH-LINUX-KDE-23/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/GLITCH-LINUX-KDE-23/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash quiet splash ip=dhcp
+boot || goto GLITCH_LINUX_KDE_23_menu
+
+:GLITCH_LINUX_KDE_23_fetch
+echo Loading GLITCH-LINUX-KDE-23 (Network Fetch)...
+kernel ${base_url}/GLITCH-LINUX-KDE-23/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/GLITCH-LINUX-KDE-23/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/GLITCH-LINUX-KDE-23/live/filesystem.squashfs ip=dhcp
+boot || goto GLITCH_LINUX_KDE_23_menu
+
+:GLITCH_LINUX_KDE_23_toram
+echo Loading GLITCH-LINUX-KDE-23 (Load to RAM)...
+kernel ${base_url}/GLITCH-LINUX-KDE-23/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/GLITCH-LINUX-KDE-23/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/GLITCH-LINUX-KDE-23/live/filesystem.squashfs toram ip=dhcp
+boot || goto GLITCH_LINUX_KDE_23_menu
+
+:GLITCH_LINUX_KDE_23_debug
+echo Loading GLITCH-LINUX-KDE-23 (Debug Mode)...
+kernel ${base_url}/GLITCH-LINUX-KDE-23/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/GLITCH-LINUX-KDE-23/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/GLITCH-LINUX-KDE-23/live/filesystem.squashfs debug ip=dhcp
+boot || goto GLITCH_LINUX_KDE_23_menu
+
+:back_to_main
+goto start
+
+:GNOPPIX_live_4_2_1_menu
+clear submenu_choice
+menu GNOPPIX-live-4.2.1 Boot Options
+item --gap -- Boot Methods
+item GNOPPIX_live_4_2_1_standard Standard Boot
+item GNOPPIX_live_4_2_1_fetch Network Fetch (Recommended)
+item GNOPPIX_live_4_2_1_toram Load to RAM
+item GNOPPIX_live_4_2_1_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:GNOPPIX_live_4_2_1_standard
+echo Loading GNOPPIX-live-4.2.1 (Standard)...
+kernel ${base_url}/GNOPPIX-live-4.2.1/live/vmlinuz
+initrd ${base_url}/GNOPPIX-live-4.2.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash quiet splash ip=dhcp
+boot || goto GNOPPIX_live_4_2_1_menu
+
+:GNOPPIX_live_4_2_1_fetch
+echo Loading GNOPPIX-live-4.2.1 (Network Fetch)...
+kernel ${base_url}/GNOPPIX-live-4.2.1/live/vmlinuz
+initrd ${base_url}/GNOPPIX-live-4.2.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/GNOPPIX-live-4.2.1/live/filesystem.squashfs ip=dhcp
+boot || goto GNOPPIX_live_4_2_1_menu
+
+:GNOPPIX_live_4_2_1_toram
+echo Loading GNOPPIX-live-4.2.1 (Load to RAM)...
+kernel ${base_url}/GNOPPIX-live-4.2.1/live/vmlinuz
+initrd ${base_url}/GNOPPIX-live-4.2.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/GNOPPIX-live-4.2.1/live/filesystem.squashfs toram ip=dhcp
+boot || goto GNOPPIX_live_4_2_1_menu
+
+:GNOPPIX_live_4_2_1_debug
+echo Loading GNOPPIX-live-4.2.1 (Debug Mode)...
+kernel ${base_url}/GNOPPIX-live-4.2.1/live/vmlinuz
+initrd ${base_url}/GNOPPIX-live-4.2.1/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/GNOPPIX-live-4.2.1/live/filesystem.squashfs debug ip=dhcp
+boot || goto GNOPPIX_live_4_2_1_menu
+
+:back_to_main
+goto start
+
+:Kali_Everyday_Xfce_Respin_menu
+clear submenu_choice
+menu Kali-Everyday-Xfce-Respin Boot Options
+item --gap -- Boot Methods
+item Kali_Everyday_Xfce_Respin_standard Standard Boot
+item Kali_Everyday_Xfce_Respin_fetch Network Fetch (Recommended)
+item Kali_Everyday_Xfce_Respin_toram Load to RAM
+item Kali_Everyday_Xfce_Respin_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:Kali_Everyday_Xfce_Respin_standard
+echo Loading Kali-Everyday-Xfce-Respin (Standard)...
+kernel ${base_url}/Kali-Everyday-Xfce-Respin/live/vmlinuz
+initrd ${base_url}/Kali-Everyday-Xfce-Respin/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash quiet splash ip=dhcp
+boot || goto Kali_Everyday_Xfce_Respin_menu
+
+:Kali_Everyday_Xfce_Respin_fetch
+echo Loading Kali-Everyday-Xfce-Respin (Network Fetch)...
+kernel ${base_url}/Kali-Everyday-Xfce-Respin/live/vmlinuz
+initrd ${base_url}/Kali-Everyday-Xfce-Respin/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Kali-Everyday-Xfce-Respin/live/filesystem.squashfs ip=dhcp
+boot || goto Kali_Everyday_Xfce_Respin_menu
+
+:Kali_Everyday_Xfce_Respin_toram
+echo Loading Kali-Everyday-Xfce-Respin (Load to RAM)...
+kernel ${base_url}/Kali-Everyday-Xfce-Respin/live/vmlinuz
+initrd ${base_url}/Kali-Everyday-Xfce-Respin/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Kali-Everyday-Xfce-Respin/live/filesystem.squashfs toram ip=dhcp
+boot || goto Kali_Everyday_Xfce_Respin_menu
+
+:Kali_Everyday_Xfce_Respin_debug
+echo Loading Kali-Everyday-Xfce-Respin (Debug Mode)...
+kernel ${base_url}/Kali-Everyday-Xfce-Respin/live/vmlinuz
+initrd ${base_url}/Kali-Everyday-Xfce-Respin/live/initrd.img
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Kali-Everyday-Xfce-Respin/live/filesystem.squashfs debug ip=dhcp
+boot || goto Kali_Everyday_Xfce_Respin_menu
+
+:back_to_main
+goto start
+
+:kali_linux_2025_1c_live_menu
+clear submenu_choice
+menu kali-linux-2025.1c-live Boot Options
+item --gap -- Boot Methods
+item kali_linux_2025_1c_live_standard Standard Boot
+item kali_linux_2025_1c_live_fetch Network Fetch (Recommended)
+item kali_linux_2025_1c_live_toram Load to RAM
+item kali_linux_2025_1c_live_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:kali_linux_2025_1c_live_standard
+echo Loading kali-linux-2025.1c-live (Standard)...
+kernel ${base_url}/kali-linux-2025.1c-live/live/vmlinuz
+initrd ${base_url}/kali-linux-2025.1c-live/live/initrd.img-6.12.13-amd64
+imgargs vmlinuz boot=live components quiet splash quiet splash ip=dhcp
+boot || goto kali_linux_2025_1c_live_menu
+
+:kali_linux_2025_1c_live_fetch
+echo Loading kali-linux-2025.1c-live (Network Fetch)...
+kernel ${base_url}/kali-linux-2025.1c-live/live/vmlinuz
+initrd ${base_url}/kali-linux-2025.1c-live/live/initrd.img-6.12.13-amd64
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/kali-linux-2025.1c-live/live/filesystem.squashfs ip=dhcp
+boot || goto kali_linux_2025_1c_live_menu
+
+:kali_linux_2025_1c_live_toram
+echo Loading kali-linux-2025.1c-live (Load to RAM)...
+kernel ${base_url}/kali-linux-2025.1c-live/live/vmlinuz
+initrd ${base_url}/kali-linux-2025.1c-live/live/initrd.img-6.12.13-amd64
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/kali-linux-2025.1c-live/live/filesystem.squashfs toram ip=dhcp
+boot || goto kali_linux_2025_1c_live_menu
+
+:kali_linux_2025_1c_live_debug
+echo Loading kali-linux-2025.1c-live (Debug Mode)...
+kernel ${base_url}/kali-linux-2025.1c-live/live/vmlinuz
+initrd ${base_url}/kali-linux-2025.1c-live/live/initrd.img-6.12.13-amd64
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/kali-linux-2025.1c-live/live/filesystem.squashfs debug ip=dhcp
+boot || goto kali_linux_2025_1c_live_menu
+
+:back_to_main
+goto start
+
+:Linux_Lite_7_6_menu
+clear submenu_choice
+menu Linux Lite 7.6 Boot Options
+item --gap -- Boot Methods
+item Linux_Lite_7_6_standard Standard Boot
+item Linux_Lite_7_6_fetch Network Fetch (Recommended)
+item Linux_Lite_7_6_toram Load to RAM
+item Linux_Lite_7_6_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:Linux_Lite_7_6_standard
+echo Loading Linux Lite 7.6 (Standard)...
+kernel ${base_url}/Linux Lite 7.6/casper/vmlinuz
+initrd ${base_url}/Linux Lite 7.6/casper/initrd.gz
+imgargs vmlinuz boot=casper maybe-ubiquity quiet splash quiet splash ip=dhcp
+boot || goto Linux_Lite_7_6_menu
+
+:Linux_Lite_7_6_fetch
+echo Loading Linux Lite 7.6 (Network Fetch)...
+kernel ${base_url}/Linux Lite 7.6/casper/vmlinuz
+initrd ${base_url}/Linux Lite 7.6/casper/initrd.gz
+imgargs vmlinuz boot=casper maybe-ubiquity quiet splash fetch=${base_url}/Linux Lite 7.6/casper/filesystem.squashfs ip=dhcp
+boot || goto Linux_Lite_7_6_menu
+
+:Linux_Lite_7_6_toram
+echo Loading Linux Lite 7.6 (Load to RAM)...
+kernel ${base_url}/Linux Lite 7.6/casper/vmlinuz
+initrd ${base_url}/Linux Lite 7.6/casper/initrd.gz
+imgargs vmlinuz boot=casper maybe-ubiquity quiet splash fetch=${base_url}/Linux Lite 7.6/casper/filesystem.squashfs toram ip=dhcp
+boot || goto Linux_Lite_7_6_menu
+
+:Linux_Lite_7_6_debug
+echo Loading Linux Lite 7.6 (Debug Mode)...
+kernel ${base_url}/Linux Lite 7.6/casper/vmlinuz
+initrd ${base_url}/Linux Lite 7.6/casper/initrd.gz
+imgargs vmlinuz boot=casper maybe-ubiquity quiet splash fetch=${base_url}/Linux Lite 7.6/casper/filesystem.squashfs debug ip=dhcp
+boot || goto Linux_Lite_7_6_menu
+
+:back_to_main
+goto start
+
+:MiniDeb_BookWorm_v1_menu
+clear submenu_choice
+menu MiniDeb-BookWorm-v1 Boot Options
+item --gap -- Boot Methods
+item MiniDeb_BookWorm_v1_standard Standard Boot
+item MiniDeb_BookWorm_v1_fetch Network Fetch (Recommended)
+item MiniDeb_BookWorm_v1_toram Load to RAM
+item MiniDeb_BookWorm_v1_debug Debug Mode
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:MiniDeb_BookWorm_v1_standard
+echo Loading MiniDeb-BookWorm-v1 (Standard)...
+kernel ${base_url}/MiniDeb-BookWorm-v1/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/MiniDeb-BookWorm-v1/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash quiet splash ip=dhcp
+boot || goto MiniDeb_BookWorm_v1_menu
+
+:MiniDeb_BookWorm_v1_fetch
+echo Loading MiniDeb-BookWorm-v1 (Network Fetch)...
+kernel ${base_url}/MiniDeb-BookWorm-v1/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/MiniDeb-BookWorm-v1/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/MiniDeb-BookWorm-v1/live/filesystem.squashfs ip=dhcp
+boot || goto MiniDeb_BookWorm_v1_menu
+
+:MiniDeb_BookWorm_v1_toram
+echo Loading MiniDeb-BookWorm-v1 (Load to RAM)...
+kernel ${base_url}/MiniDeb-BookWorm-v1/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/MiniDeb-BookWorm-v1/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/MiniDeb-BookWorm-v1/live/filesystem.squashfs toram ip=dhcp
+boot || goto MiniDeb_BookWorm_v1_menu
+
+:MiniDeb_BookWorm_v1_debug
+echo Loading MiniDeb-BookWorm-v1 (Debug Mode)...
+kernel ${base_url}/MiniDeb-BookWorm-v1/live/vmlinuz-6.1.0-38-amd64
+initrd ${base_url}/MiniDeb-BookWorm-v1/live/initrd.img-6.1.0-38-amd64
+imgargs vmlinuz-6.1.0-38-amd64 boot=live components quiet splash fetch=${base_url}/MiniDeb-BookWorm-v1/live/filesystem.squashfs debug ip=dhcp
+boot || goto MiniDeb_BookWorm_v1_menu
+
+:back_to_main
+goto start
+
+:Redo_Rescue_4_0_0_menu
+clear submenu_choice
+menu Redo_Rescue_4.0.0 Boot Options
+item --gap -- Boot Methods
+item Redo_Rescue_4_0_0_standard Standard Boot
+item Redo_Rescue_4_0_0_fetch Network Fetch (Recommended)
+item Redo_Rescue_4_0_0_toram Load to RAM
+item Redo_Rescue_4_0_0_debug Debug Mode
+item Redo_Rescue_4_0_0_copytoram Copy to RAM
+item Redo_Rescue_4_0_0_findroot Find Installed Systems
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:Redo_Rescue_4_0_0_standard
+echo Loading Redo_Rescue_4.0.0 (Standard)...
+kernel ${base_url}/Redo_Rescue_4.0.0/vmlinuz
+initrd ${base_url}/Redo_Rescue_4.0.0/initrd
+imgargs vmlinuz boot=live components quiet splash quiet splash ip=dhcp
+boot || goto Redo_Rescue_4_0_0_menu
+
+:Redo_Rescue_4_0_0_fetch
+echo Loading Redo_Rescue_4.0.0 (Network Fetch)...
+kernel ${base_url}/Redo_Rescue_4.0.0/vmlinuz
+initrd ${base_url}/Redo_Rescue_4.0.0/initrd
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Redo_Rescue_4.0.0/live/filesystem.squashfs ip=dhcp
+boot || goto Redo_Rescue_4_0_0_menu
+
+:Redo_Rescue_4_0_0_toram
+echo Loading Redo_Rescue_4.0.0 (Load to RAM)...
+kernel ${base_url}/Redo_Rescue_4.0.0/vmlinuz
+initrd ${base_url}/Redo_Rescue_4.0.0/initrd
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Redo_Rescue_4.0.0/live/filesystem.squashfs toram ip=dhcp
+boot || goto Redo_Rescue_4_0_0_menu
+
+:Redo_Rescue_4_0_0_debug
+echo Loading Redo_Rescue_4.0.0 (Debug Mode)...
+kernel ${base_url}/Redo_Rescue_4.0.0/vmlinuz
+initrd ${base_url}/Redo_Rescue_4.0.0/initrd
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Redo_Rescue_4.0.0/live/filesystem.squashfs debug ip=dhcp
+boot || goto Redo_Rescue_4_0_0_menu
+
+:Redo_Rescue_4_0_0_copytoram
+echo Loading Redo_Rescue_4.0.0 (Copy to RAM)...
+kernel ${base_url}/Redo_Rescue_4.0.0/vmlinuz
+initrd ${base_url}/Redo_Rescue_4.0.0/initrd
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Redo_Rescue_4.0.0/live/filesystem.squashfs copytoram ip=dhcp
+boot || goto Redo_Rescue_4_0_0_menu
+
+:Redo_Rescue_4_0_0_findroot
+echo Loading Redo_Rescue_4.0.0 (Find Root Systems)...
+kernel ${base_url}/Redo_Rescue_4.0.0/vmlinuz
+initrd ${base_url}/Redo_Rescue_4.0.0/initrd
+imgargs vmlinuz boot=live components quiet splash fetch=${base_url}/Redo_Rescue_4.0.0/live/filesystem.squashfs findroot ip=dhcp
+boot || goto Redo_Rescue_4_0_0_menu
+
+:back_to_main
+goto start
+
+:Rescatux0_74_menu
+clear submenu_choice
+menu Rescatux0.74 Boot Options
+item --gap -- Boot Methods
+item Rescatux0_74_standard Standard Boot
+item Rescatux0_74_fetch Network Fetch (Recommended)
+item Rescatux0_74_toram Load to RAM
+item Rescatux0_74_debug Debug Mode
+item Rescatux0_74_copytoram Copy to RAM
+item Rescatux0_74_findroot Find Installed Systems
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:Rescatux0_74_standard
+echo Loading Rescatux0.74 (Standard)...
+kernel ${base_url}/Rescatux0.74/live/vmlinuz2
+initrd ${base_url}/Rescatux0.74/live/initrd.img-4.19.0-18-686
+imgargs vmlinuz2 boot=live components quiet splash quiet splash ip=dhcp
+boot || goto Rescatux0_74_menu
+
+:Rescatux0_74_fetch
+echo Loading Rescatux0.74 (Network Fetch)...
+kernel ${base_url}/Rescatux0.74/live/vmlinuz2
+initrd ${base_url}/Rescatux0.74/live/initrd.img-4.19.0-18-686
+imgargs vmlinuz2 boot=live components quiet splash fetch=${base_url}/Rescatux0.74/live/filesystem.squashfs ip=dhcp
+boot || goto Rescatux0_74_menu
+
+:Rescatux0_74_toram
+echo Loading Rescatux0.74 (Load to RAM)...
+kernel ${base_url}/Rescatux0.74/live/vmlinuz2
+initrd ${base_url}/Rescatux0.74/live/initrd.img-4.19.0-18-686
+imgargs vmlinuz2 boot=live components quiet splash fetch=${base_url}/Rescatux0.74/live/filesystem.squashfs toram ip=dhcp
+boot || goto Rescatux0_74_menu
+
+:Rescatux0_74_debug
+echo Loading Rescatux0.74 (Debug Mode)...
+kernel ${base_url}/Rescatux0.74/live/vmlinuz2
+initrd ${base_url}/Rescatux0.74/live/initrd.img-4.19.0-18-686
+imgargs vmlinuz2 boot=live components quiet splash fetch=${base_url}/Rescatux0.74/live/filesystem.squashfs debug ip=dhcp
+boot || goto Rescatux0_74_menu
+
+:Rescatux0_74_copytoram
+echo Loading Rescatux0.74 (Copy to RAM)...
+kernel ${base_url}/Rescatux0.74/live/vmlinuz2
+initrd ${base_url}/Rescatux0.74/live/initrd.img-4.19.0-18-686
+imgargs vmlinuz2 boot=live components quiet splash fetch=${base_url}/Rescatux0.74/live/filesystem.squashfs copytoram ip=dhcp
+boot || goto Rescatux0_74_menu
+
+:Rescatux0_74_findroot
+echo Loading Rescatux0.74 (Find Root Systems)...
+kernel ${base_url}/Rescatux0.74/live/vmlinuz2
+initrd ${base_url}/Rescatux0.74/live/initrd.img-4.19.0-18-686
+imgargs vmlinuz2 boot=live components quiet splash fetch=${base_url}/Rescatux0.74/live/filesystem.squashfs findroot ip=dhcp
+boot || goto Rescatux0_74_menu
+
+:back_to_main
+goto start
+
+:TAILS_6_18_menu
+clear submenu_choice
+menu TAILS.6.18 Boot Options
+item --gap -- Boot Methods
+item TAILS_6_18_standard Standard Boot
+item TAILS_6_18_fetch Network Fetch (Recommended)
+item TAILS_6_18_toram Load to RAM
+item TAILS_6_18_debug Debug Mode
+item TAILS_6_18_forensic Forensic Mode (No Swap)
+item --gap -- Navigation
+item back_to_main Back to Main Menu
+choose submenu_choice || goto start
+echo ${cls}
+goto ${submenu_choice}
+
+:TAILS_6_18_standard
+echo Loading TAILS.6.18 (Standard)...
+kernel ${base_url}/TAILS.6.18/live/vmlinuz
+initrd ${base_url}/TAILS.6.18/live/initrd.img
+imgargs vmlinuz boot=live config live-media=removable nopersistence noprompt timezone=Etc/UTC noautologin module=Tails vsyscall=none page_poison=1 init_on_alloc=1 init_on_free=1 mds=full,nosmt quiet splash ip=dhcp
+boot || goto TAILS_6_18_menu
+
+:TAILS_6_18_fetch
+echo Loading TAILS.6.18 (Network Fetch)...
+kernel ${base_url}/TAILS.6.18/live/vmlinuz
+initrd ${base_url}/TAILS.6.18/live/initrd.img
+imgargs vmlinuz boot=live config live-media=removable nopersistence noprompt timezone=Etc/UTC noautologin module=Tails vsyscall=none page_poison=1 init_on_alloc=1 init_on_free=1 mds=full,nosmt fetch=${base_url}/TAILS.6.18/live/filesystem.squashfs ip=dhcp
+boot || goto TAILS_6_18_menu
+
+:TAILS_6_18_toram
+echo Loading TAILS.6.18 (Load to RAM)...
+kernel ${base_url}/TAILS.6.18/live/vmlinuz
+initrd ${base_url}/TAILS.6.18/live/initrd.img
+imgargs vmlinuz boot=live config live-media=removable nopersistence noprompt timezone=Etc/UTC noautologin module=Tails vsyscall=none page_poison=1 init_on_alloc=1 init_on_free=1 mds=full,nosmt fetch=${base_url}/TAILS.6.18/live/filesystem.squashfs toram ip=dhcp
+boot || goto TAILS_6_18_menu
+
+:TAILS_6_18_debug
+echo Loading TAILS.6.18 (Debug Mode)...
+kernel ${base_url}/TAILS.6.18/live/vmlinuz
+initrd ${base_url}/TAILS.6.18/live/initrd.img
+imgargs vmlinuz boot=live config live-media=removable nopersistence noprompt timezone=Etc/UTC noautologin module=Tails vsyscall=none page_poison=1 init_on_alloc=1 init_on_free=1 mds=full,nosmt fetch=${base_url}/TAILS.6.18/live/filesystem.squashfs debug ip=dhcp
+boot || goto TAILS_6_18_menu
+
+:TAILS_6_18_forensic
+echo Loading TAILS.6.18 (Forensic Mode)...
+kernel ${base_url}/TAILS.6.18/live/vmlinuz
+initrd ${base_url}/TAILS.6.18/live/initrd.img
+imgargs vmlinuz boot=live config live-media=removable nopersistence noprompt timezone=Etc/UTC noautologin module=Tails vsyscall=none page_poison=1 init_on_alloc=1 init_on_free=1 mds=full,nosmt fetch=${base_url}/TAILS.6.18/live/filesystem.squashfs noswap ip=dhcp
+boot || goto TAILS_6_18_menu
+
+:back_to_main
+goto start
+
+:boot_info
+echo Universal iPXE Multiboot System v2.0
+echo =====================================
+echo Base URL: ${base_url}
+echo
+echo Available systems:
+echo Windows PE Systems: 6
+echo Linux Distributions: 14
+echo
+echo Advanced Features:
+echo - Multi-architecture support (BIOS/UEFI)
+echo - Network filesystem loading via HTTP
+echo - Memory optimization (ToRAM/CopyToRAM)
+echo - Debug and forensic modes
+echo - Rescue system integration
+echo - Windows PE wimboot support
+echo
+echo Press any key to return to menu...
+prompt
+goto start
+
+:shell_access
+echo Dropping to iPXE shell...
+echo Type 'exit' to return to menu
+shell
+goto start
+
+:local_boot
+echo Booting from local disk...
+sanboot --no-describe --drive 0x80 || goto start
+
+:reboot_system
+echo Rebooting system...
+reboot
+
+:shutdown_system  
+echo Shutting down system...
+poweroff
