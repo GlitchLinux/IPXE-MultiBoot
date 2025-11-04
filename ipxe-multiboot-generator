@@ -489,11 +489,20 @@ cat > "$MENU_FILE" << 'MENU_START'
 #!ipxe
 # Universal Multi-Distro iPXE Menu v2.0
 # Supports Linux, Windows PE, and Bootloaders
-set base_url http://85.227.185.1/ipxe
+set base_url http://glitchlinux.wtf/ipxe
+
+cpair --foreground 15 --background 0 1 # Normal text: white on black
+cpair --foreground 10 --background 0 0    # Bright green separator
+#cpair --foreground 13 --background 0 2 # Highlighted: pink on black
+cpair --foreground 10 --background 0 3 # Sep
+
+#cpair --foreground 11 --background 0 2    # Bright cyan on black
+#cpair --foreground 0 --background 9 1     # Black on light blue (selected)
+#cpair --foreground 14 --background 0 0    # Yellow separato
 
 :start
 clear menu_choice
-menu Universal iPXE Multiboot System
+menu GLITCH LINUX iPXE Multiboot Framework
 item --gap -- Windows PE Systems
 MENU_START
 
@@ -551,6 +560,7 @@ item boot_info Show Boot Information
 item shell_access iPXE Shell Access
 item --gap -- System Control
 item local_boot Boot from Local Disk
+item netboot_xyz Boot from netboot.xyz
 item reboot_system Reboot System
 item shutdown_system Shutdown System
 choose menu_choice || goto start
@@ -604,6 +614,9 @@ goto start
 echo Booting from local disk...
 sanboot --no-describe --drive 0x80 || goto start
 
+:netboot_xyz
+chain --autofree http://boot.netboot.xyz
+
 :reboot_system
 echo Rebooting system...
 reboot
@@ -637,3 +650,4 @@ echo "Menu file: $MENU_FILE"
 echo "Backup: $BACKUP_FILE"
 echo
 echo "Boot your iPXE system to test the enhanced multiboot menu!"
+
