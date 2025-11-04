@@ -9,7 +9,7 @@ echo "Scanning for Linux, Windows PE, and Bootloader systems..."
 
 IPXE_ROOT="/var/www/glitchlinux.wtf/ipxe"
 WINPE_ROOT="$IPXE_ROOT/Windows-PE-ipxe"
-BASE_URL="http://85.227.185.1/ipxe"
+BASE_URL="http://glitchlinux.wtf/ipxe"
 MENU_FILE="$IPXE_ROOT/custom.ipxe"
 BACKUP_FILE="$IPXE_ROOT/custom.ipxe.backup"
 
