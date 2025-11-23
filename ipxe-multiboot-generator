@@ -1,9 +1,9 @@
 #!/bin/bash
-# Universal iPXE Multi-Boot Generator v3.0
+# Universal iPXE Multi-Boot Generator v3.1
 # Hierarchical Sub-Menu System
-# Linux Distributions | Windows PE | Bootloaders & Utilities
+# Linux Distributions | Windows PE | Bootloaders & Utilities | Debian Netinstaller
 
-echo "Universal iPXE Multiboot Generator v3.0 - Sub-Menu Edition"
+echo "Universal iPXE Multiboot Generator v3.1 - Sub-Menu Edition"
 echo "=========================================================="
 echo "Scanning for Linux, Windows PE, Bootloaders, and Utilities..."
 
@@ -334,17 +334,31 @@ detect_linux_distros() {
 # Main menu generation starts here
 cat > "$MENU_FILE" << 'MENU_START'
 #!ipxe
-# Universal Multi-Distro iPXE Menu v3.0
+# Universal Multi-Distro iPXE Menu v3.1
 # Hierarchical Sub-Menu System
 set base_url http://glitchlinux.wtf/ipxe
 
-cpair --foreground 15 --background 0 1
-cpair --foreground 10 --background 0 0
-cpair --foreground 10 --background 0 3
+# Glitch Linux iPXE Theme
+# Default text (white on black)
+cpair --foreground 7 --background 0 0
+# Normal UI text (green on black)
+cpair --foreground 10 --background 0 1
+# Highlighted text (white on green)
+cpair --foreground 7 --background 10 2
+# Separators (dim green on black)
+cpair --foreground 2 --background 0 3
+# Editable text (black on green)
+cpair --foreground 0 --background 10 4
+# Error messages (white on red)
+cpair --foreground 7 --background 1 5
+# Help URLs (green on black)
+cpair --foreground 10 --background 0 6
+# PXE selection (black on white)
+cpair --foreground 0 --background 7 7
 
 :start
 clear menu_choice
-menu GLITCH LINUX iPXE Multiboot Framework
+menu GLITCH LINUX iPXE Multiboot
 item --gap --
 MENU_START
 
@@ -363,7 +377,7 @@ if [ $winpe_count -gt 0 ]; then
 fi
 
 if [ $bootloader_count -gt 0 ]; then
-    echo "item bootloader_menu Bootloaders & Utilities ($bootloader_count)" >> "$MENU_FILE"
+    echo "item bootloader_menu Bootloaders ($bootloader_count)" >> "$MENU_FILE"
 fi
 
 cat >> "$MENU_FILE" << 'MENU_MAIN'
@@ -416,8 +430,8 @@ LINUX_SUBMENU_END
 :${item_base}_boot
 clear linux_boot_choice
 menu $distro_name - Boot Options
+item ${item_base}_fetch Network Fetch 
 item ${item_base}_standard Standard Boot
-item ${item_base}_fetch Network Fetch (Recommended)
 LINUX_BOOT_ENTRY
 
         if [[ "$family" != "arch" ]]; then
@@ -432,7 +446,7 @@ LINUX_DEBUG
 
         case "$family" in
             "security")
-                echo "item ${item_base}_forensic Forensic Mode (No Swap)" >> "$MENU_FILE"
+                echo "item ${item_base}_forensic Forensic Mode with No Swap" >> "$MENU_FILE"
                 ;;
             "rescue")
                 cat >> "$MENU_FILE" << LINUX_RESCUE
@@ -453,7 +467,7 @@ goto \${linux_boot_choice}
 echo Loading $distro_name (Standard)...
 kernel \${base_url}/$distro_name/$kernel_file
 initrd \${base_url}/$distro_name/$initrd_file
-imgargs $kernel_basename $boot_params quiet splash ip=dhcp
+imgargs $kernel_basename $boot_params quiet splash ip=8.8.8.8
 boot || goto ${item_base}_boot
 
 :${item_base}_fetch
@@ -464,7 +478,7 @@ LINUX_NAV
 
         if [ -n "$filesystem_file" ]; then
             cat >> "$MENU_FILE" << LINUX_FETCH_FS
-imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file ip=dhcp
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file ip=8.8.8.8
 LINUX_FETCH_FS
         else
             cat >> "$MENU_FILE" << LINUX_FETCH_NOFS
@@ -487,7 +501,7 @@ LINUX_TORAM_BOOT
 
             if [ -n "$filesystem_file" ]; then
                 cat >> "$MENU_FILE" << LINUX_TORAM_FS
-imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file toram ip=dhcp
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file toram ip=8.8.8.8
 LINUX_TORAM_FS
             else
                 cat >> "$MENU_FILE" << LINUX_TORAM_NOFS
@@ -510,7 +524,7 @@ LINUX_DEBUG_BOOT
 
         if [ -n "$filesystem_file" ]; then
             cat >> "$MENU_FILE" << LINUX_DEBUG_FS
-imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file debug ip=dhcp
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file debug ip=8.8.8.8
 LINUX_DEBUG_FS
         else
             cat >> "$MENU_FILE" << LINUX_DEBUG_NOFS
@@ -537,7 +551,7 @@ SECURITY_FORENSIC
 
                 if [ -n "$filesystem_file" ]; then
                     cat >> "$MENU_FILE" << SECURITY_FORENSIC_FS
-imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file noswap ip=dhcp
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file noswap ip=8.8.8.8
 SECURITY_FORENSIC_FS
                 else
                     cat >> "$MENU_FILE" << SECURITY_FORENSIC_NOFS
@@ -560,7 +574,7 @@ RESCUE_COPYTORAM
 
                 if [ -n "$filesystem_file" ]; then
                     cat >> "$MENU_FILE" << RESCUE_COPYTORAM_FS
-imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file copytoram ip=dhcp
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file copytoram ip=8.8.8.8
 RESCUE_COPYTORAM_FS
                 else
                     cat >> "$MENU_FILE" << RESCUE_COPYTORAM_NOFS
@@ -579,7 +593,7 @@ RESCUE_COPYTORAM_FINAL
 
                 if [ -n "$filesystem_file" ]; then
                     cat >> "$MENU_FILE" << RESCUE_FINDROOT_FS
-imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file findroot ip=dhcp
+imgargs $kernel_basename $boot_params fetch=\${base_url}/$distro_name/$filesystem_file findroot ip=8.8.8.8
 RESCUE_FINDROOT_FS
                 else
                     cat >> "$MENU_FILE" << RESCUE_FINDROOT_NOFS
@@ -652,7 +666,7 @@ if [ $bootloader_count -gt 0 ]; then
 
 :bootloader_menu
 clear submenu_choice
-menu Bootloaders & Utilities
+menu Bootloaders
 BOOTLOADER_SUBMENU_START
 
     for ((i=0; i<bootloader_count; i++)); do
@@ -678,7 +692,7 @@ BOOTLOADER_SUBMENU_END
         cat >> "$MENU_FILE" << BOOTLOADER_BOOT
 :bootloader_${i}
 echo Loading ${bootloader_name} ($bootloader_type)...
-chain \${base_url}/${bootloader_path}
+sanboot --no-describe \${base_url}/${bootloader_path}
 boot || goto bootloader_menu
 
 BOOTLOADER_BOOT
@@ -696,6 +710,7 @@ menu System Tools
 item boot_info System Information
 item shell_access iPXE Shell
 item local_boot Boot from Local Disk
+item debian_13_2_0_netinst Debian 13.2.0 Netinstaller
 item netboot_xyz Boot from netboot.xyz
 item --gap --
 item back_to_main Back to Main Menu
@@ -704,7 +719,7 @@ echo ${cls}
 goto ${tools_choice}
 
 :boot_info
-echo Universal iPXE Multiboot System v3.0
+echo Universal iPXE Multiboot System v3.1
 echo =====================================
 echo Base URL: ${base_url}
 echo
@@ -718,7 +733,7 @@ if [ $winpe_count -gt 0 ]; then
     echo "echo Windows PE Systems: $winpe_count" >> "$MENU_FILE"
 fi
 if [ $bootloader_count -gt 0 ]; then
-    echo "echo Bootloaders & Utilities: $bootloader_count" >> "$MENU_FILE"
+    echo "echo Bootloaders: $bootloader_count" >> "$MENU_FILE"
 fi
 
 cat >> "$MENU_FILE" << 'SYSTEM_TOOLS_END'
@@ -730,6 +745,7 @@ echo - Network filesystem loading via HTTP
 echo - Memory optimization (ToRAM/CopyToRAM)
 echo - Debug and forensic modes
 echo - Windows PE wimboot support
+echo - Debian netinstaller integration
 echo
 echo Press any key to return to menu...
 prompt
@@ -738,6 +754,13 @@ goto start
 :local_boot
 echo Booting from local disk...
 sanboot --no-describe --drive 0x80 || goto start
+
+:debian_13_2_0_netinst
+echo Loading Debian 13.2.0 Netinstall...
+kernel ${base_url}/debian-testing-amd64-netinst/debian-installer/amd64/linux
+initrd ${base_url}/debian-testing-amd64-netinst/debian-installer/amd64/initrd.gz
+imgargs linux ip=dhcp
+boot || goto system_tools
 
 :netboot_xyz
 chain --autofree http://boot.netboot.xyz
@@ -761,31 +784,8 @@ chown www-data:www-data "$MENU_FILE"
 chmod 644 "$MENU_FILE"
 
 # Summary report
-echo
-echo "Universal iPXE Multiboot Generator v3.0 - Summary"
-echo "=================================================="
-echo "✓ Linux Distributions: $linux_count"
-echo "✓ Windows PE Systems: $winpe_count"
-echo "✓ Bootloaders & Utilities: $bootloader_count"
-echo "✓ Total bootable systems: $((linux_count + winpe_count + bootloader_count))"
-echo
-echo "Navigation Structure:"
-echo "• Main Menu"
-echo "  ├─ Linux Distributions ($linux_count)"
-echo "  ├─ Windows PE Systems ($winpe_count)"
-echo "  ├─ Bootloaders & Utilities ($bootloader_count)"
-echo "  └─ System Tools"
-echo
-echo "Features implemented:"
-echo "• Hierarchical sub-menu system"
-echo "• Advanced distro family detection"
-echo "• Multiple boot modes per distribution"
-echo "• Bootloader/ISO/IMG file auto-detection"
-echo "• Windows PE wimboot integration"
-echo "• Network filesystem loading"
-echo "• Error handling and fallback mechanisms"
-echo
-echo "Menu file: $MENU_FILE"
-echo "Backup: $BACKUP_FILE"
-echo
-echo "Boot your iPXE system to test the hierarchical multiboot menu!"
+echo ""
+echo ""
+echo "  Universal iPXE Multiboot Generator - COMPLETED" | borderize
+echo ""
+echo ""
