@@ -1,0 +1,393 @@
+#!/bin/bash
+#
+# iPXE Single-OS ISO Builder
+# Creates a hybrid BIOS/UEFI bootable ISO that auto-boots ONE predefined OS
+# Uses the existing gLiTcH iPXE multiboot framework on glitchlinux.wtf
+#
+# Install: sudo cp ipxe-os-iso /usr/local/bin/ && sudo chmod +x /usr/local/bin/ipxe-os-iso
+# Usage:   ipxe-os-iso
+#
+
+set -e
+
+# === CONFIGURATION ===
+IPXE_BASE="/var/www/glitchlinux.wtf/ipxe"
+IPXE_URL="http://glitchlinux.wtf/ipxe"
+TEMPLATE_DIR="/var/www/glitchlinux.wtf/ipxe-iso-builder/gLiTcH-iPXE"
+OUTPUT_DIR="/var/www/glitchlinux.wtf/FILES/IPXE"
+WORK_DIR="/tmp/ipxe-single-os-build"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Check root
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}ERROR: Run as root (sudo ipxe-os-iso)${NC}"
+    exit 1
+fi
+
+# Check template exists
+if [ ! -d "$TEMPLATE_DIR" ]; then
+    echo -e "${RED}ERROR: Template ISO directory not found: $TEMPLATE_DIR${NC}"
+    exit 1
+fi
+
+# Cleanup
+rm -rf "$WORK_DIR"
+mkdir -p "$WORK_DIR"
+
+echo ""
+echo -e "${GREEN}iPXE Single-OS ISO Builder${NC}"
+echo -e "${GREEN}~~~~~~~~~~~~~~~~~~~~~~~~~~${NC}"
+echo ""
+echo "Select OS type that the iPXE ISO will boot:"
+echo ""
+echo "  1) WinPE iPXE    (wimboot: BCD + boot.sdi + boot.wim)"
+echo "  2) Linux iPXE    (kernel + initrd + squashfs fetch)"
+echo "  3) SANboot iPXE  (sanboot any .iso/.img/.vhd/.raw)"
+echo ""
+read -p "Choice [1-3]: " OS_TYPE
+
+case "$OS_TYPE" in
+    1) OS_TYPE_NAME="WinPE" ;;
+    2) OS_TYPE_NAME="Linux" ;;
+    3) OS_TYPE_NAME="SANboot" ;;
+    *) echo -e "${RED}Invalid choice${NC}"; exit 1 ;;
+esac
+
+# ============================================================
+# WINPE
+# ============================================================
+if [ "$OS_TYPE" = "1" ]; then
+    echo ""
+    echo -e "${CYAN}Paste full path to WinPE directory on this server:${NC}"
+    echo -e "(e.g. /var/www/glitchlinux.wtf/ipxe/Windows-PE-ipxe/Windows_11_Recovery)"
+    echo ""
+    read -p "Path: " WINPE_PATH
+
+    # Validate
+    WINPE_PATH="${WINPE_PATH%/}"
+    if [ ! -d "$WINPE_PATH" ]; then
+        echo -e "${RED}ERROR: Directory not found: $WINPE_PATH${NC}"
+        exit 1
+    fi
+
+    # Find BCD (case-insensitive)
+    BCD_FILE=$(find "$WINPE_PATH/boot" -maxdepth 1 -iname "bcd" 2>/dev/null | head -1)
+    BOOTSDI_FILE=$(find "$WINPE_PATH/boot" -maxdepth 1 -iname "boot.sdi" 2>/dev/null | head -1)
+    
+    # Find boot.wim - check sources/ first, then root, then any .wim
+    BOOTWIM_FILE=$(find "$WINPE_PATH/sources" -maxdepth 1 -iname "boot.wim" 2>/dev/null | head -1)
+    if [ -z "$BOOTWIM_FILE" ]; then
+        BOOTWIM_FILE=$(find "$WINPE_PATH" -maxdepth 2 -iname "*.wim" 2>/dev/null | head -1)
+    fi
+
+    if [ -z "$BCD_FILE" ] || [ -z "$BOOTSDI_FILE" ] || [ -z "$BOOTWIM_FILE" ]; then
+        echo -e "${RED}ERROR: Missing required WinPE files (bcd, boot.sdi, boot.wim)${NC}"
+        echo "  BCD:      ${BCD_FILE:-NOT FOUND}"
+        echo "  boot.sdi: ${BOOTSDI_FILE:-NOT FOUND}"
+        echo "  boot.wim: ${BOOTWIM_FILE:-NOT FOUND}"
+        exit 1
+    fi
+
+    # Derive the URL path relative to ipxe base
+    REL_PATH="${WINPE_PATH#$IPXE_BASE/}"
+    # Get actual filenames for URL construction
+    BCD_BASENAME=$(basename "$BCD_FILE")
+    BOOTSDI_BASENAME=$(basename "$BOOTSDI_FILE")
+    BOOTWIM_BASENAME=$(basename "$BOOTWIM_FILE")
+    BOOTWIM_RELDIR=$(dirname "$BOOTWIM_FILE")
+    BOOTWIM_RELDIR="${BOOTWIM_RELDIR#$WINPE_PATH/}"
+
+    OS_NAME=$(basename "$WINPE_PATH")
+    
+    read -p "OS display name [$OS_NAME]: " CUSTOM_NAME
+    OS_NAME="${CUSTOM_NAME:-$OS_NAME}"
+
+    # Build embedded iPXE script
+    cat > "$WORK_DIR/boot.ipxe" << IPXESCRIPT
+#!ipxe
+
+dhcp || goto failed
+sleep 7
+echo iPXE BOOT INITIALIZING 
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo OS: WinPE - ${OS_NAME}
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo Server: https://glitchlinux.wtf/ipxe
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo BY: http://github.com/glitchlinux
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo AUTO-BOOTING: ${OS_NAME}
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+kernel ${IPXE_URL}/wimboot
+initrd ${IPXE_URL}/${REL_PATH}/boot/${BCD_BASENAME} BCD
+initrd ${IPXE_URL}/${REL_PATH}/boot/${BOOTSDI_BASENAME} boot.sdi
+initrd ${IPXE_URL}/${REL_PATH}/${BOOTWIM_RELDIR}/${BOOTWIM_BASENAME} boot.wim
+boot || goto failed
+
+:failed
+echo
+echo BOOT FAILED - Dropping to iPXE shell
+echo Retry: chain http://glitchlinux.wtf/ipxe/custom.ipxe
+shell
+IPXESCRIPT
+
+# ============================================================
+# LINUX
+# ============================================================
+elif [ "$OS_TYPE" = "2" ]; then
+    echo ""
+    echo -e "${CYAN}Paste full path to Linux distro directory on this server:${NC}"
+    echo -e "(e.g. /var/www/glitchlinux.wtf/ipxe/gLiTcH-KDE-v32)"
+    echo ""
+    read -p "Path: " LINUX_PATH
+
+    LINUX_PATH="${LINUX_PATH%/}"
+    if [ ! -d "$LINUX_PATH" ]; then
+        echo -e "${RED}ERROR: Directory not found: $LINUX_PATH${NC}"
+        exit 1
+    fi
+
+    # Auto-detect kernel and initrd
+    LIVE_DIR="$LINUX_PATH/live"
+    if [ ! -d "$LIVE_DIR" ]; then
+        echo -e "${RED}ERROR: No live/ directory found in $LINUX_PATH${NC}"
+        exit 1
+    fi
+
+    VMLINUZ=$(find "$LIVE_DIR" -maxdepth 1 -name "vmlinuz*" | head -1)
+    INITRD=$(find "$LIVE_DIR" -maxdepth 1 -name "initrd*" | head -1)
+    SQUASHFS=$(find "$LIVE_DIR" -maxdepth 1 -name "filesystem.squashfs" | head -1)
+
+    if [ -z "$VMLINUZ" ] || [ -z "$INITRD" ]; then
+        echo -e "${RED}ERROR: Missing vmlinuz or initrd in $LIVE_DIR${NC}"
+        exit 1
+    fi
+
+    VMLINUZ_NAME=$(basename "$VMLINUZ")
+    INITRD_NAME=$(basename "$INITRD")
+    REL_PATH="${LINUX_PATH#$IPXE_BASE/}"
+    OS_NAME=$(basename "$LINUX_PATH")
+
+    read -p "OS display name [$OS_NAME]: " CUSTOM_NAME
+    OS_NAME="${CUSTOM_NAME:-$OS_NAME}"
+
+    # Determine boot args based on content
+    if [ -n "$SQUASHFS" ]; then
+        BOOT_ARGS="boot=live components quiet splash fetch=${IPXE_URL}/${REL_PATH}/live/filesystem.squashfs ip=8.8.8.8"
+    else
+        BOOT_ARGS="boot=live components quiet splash ip=8.8.8.8"
+    fi
+
+    cat > "$WORK_DIR/boot.ipxe" << IPXESCRIPT
+#!ipxe
+
+dhcp || goto failed
+sleep 7
+echo iPXE BOOT INITIALIZING 
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo OS: Linux - ${OS_NAME}
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo Server: https://glitchlinux.wtf/ipxe
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo BY: http://github.com/glitchlinux
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo AUTO-BOOTING: ${OS_NAME}
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+kernel ${IPXE_URL}/${REL_PATH}/live/${VMLINUZ_NAME}
+initrd ${IPXE_URL}/${REL_PATH}/live/${INITRD_NAME}
+imgargs ${VMLINUZ_NAME} ${BOOT_ARGS}
+boot || goto failed
+
+:failed
+echo
+echo BOOT FAILED - Dropping to iPXE shell
+echo Retry: chain http://glitchlinux.wtf/ipxe/custom.ipxe
+shell
+IPXESCRIPT
+
+# ============================================================
+# SANBOOT
+# ============================================================
+elif [ "$OS_TYPE" = "3" ]; then
+    echo ""
+    echo -e "${CYAN}Paste full path to bootable file on this server:${NC}"
+    echo -e "(e.g. /var/www/glitchlinux.wtf/ipxe/Bootloaders/netboot.xyz.iso)"
+    echo ""
+    read -p "Path: " SAN_PATH
+
+    if [ ! -f "$SAN_PATH" ]; then
+        echo -e "${RED}ERROR: File not found: $SAN_PATH${NC}"
+        exit 1
+    fi
+
+    REL_PATH="${SAN_PATH#$IPXE_BASE/}"
+    FILENAME=$(basename "$SAN_PATH")
+    OS_NAME="${FILENAME%.*}"
+
+    read -p "OS display name [$OS_NAME]: " CUSTOM_NAME
+    OS_NAME="${CUSTOM_NAME:-$OS_NAME}"
+
+    cat > "$WORK_DIR/boot.ipxe" << IPXESCRIPT
+#!ipxe
+
+dhcp || goto failed
+sleep 7
+echo iPXE BOOT INITIALIZING 
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo OS: SANboot - ${OS_NAME}
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo Server: https://glitchlinux.wtf/ipxe
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo BY: http://github.com/glitchlinux
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+echo AUTO-BOOTING: ${OS_NAME}
+echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+sanboot --no-describe ${IPXE_URL}/${REL_PATH} || goto failed
+
+:failed
+echo
+echo BOOT FAILED - Dropping to iPXE shell
+echo Retry: chain http://glitchlinux.wtf/ipxe/custom.ipxe
+shell
+IPXESCRIPT
+
+fi
+
+# ============================================================
+# BUILD iPXE BINARIES
+# ============================================================
+echo ""
+echo -e "${YELLOW}Building iPXE binaries with embedded script...${NC}"
+
+cd "$WORK_DIR"
+git clone --depth 1 https://github.com/ipxe/ipxe.git 2>/dev/null
+cd ipxe/src
+
+# Fix version detection
+cat > version.h << 'EOF'
+#ifndef _VERSION_H
+#define _VERSION_H
+#define VERSION_MAJOR 1
+#define VERSION_MINOR 21
+#define VERSION_PATCH 1
+#endif
+EOF
+
+# Enable features
+sed -i 's|//#define\s*DOWNLOAD_PROTO_HTTPS|#define DOWNLOAD_PROTO_HTTPS|' config/general.h
+sed -i 's|//#undef\s*DOWNLOAD_PROTO_HTTPS|#define DOWNLOAD_PROTO_HTTPS|' config/general.h
+cat >> config/general.h << 'EOF'
+#define CONSOLE_CMD
+#define IPSTAT_CMD
+#define PING_CMD
+#define NSLOOKUP_CMD
+#define REBOOT_CMD
+#define POWEROFF_CMD
+EOF
+
+# Copy embedded script
+cp "$WORK_DIR/boot.ipxe" .
+
+echo -e "${YELLOW}Compiling BIOS binary (ipxe.lkrn)...${NC}"
+make -j$(nproc) bin/ipxe.lkrn EMBED=boot.ipxe VERSION_MAJOR=1 VERSION_MINOR=21 VERSION_PATCH=1 2>&1 | tail -3
+
+echo -e "${YELLOW}Compiling UEFI binary (ipxe.efi)...${NC}"
+make -j$(nproc) bin-x86_64-efi/ipxe.efi EMBED=boot.ipxe VERSION_MAJOR=1 VERSION_MINOR=21 VERSION_PATCH=1 2>&1 | tail -3
+
+echo -e "${GREEN}iPXE binaries compiled${NC}"
+
+# ============================================================
+# ASSEMBLE ISO
+# ============================================================
+echo -e "${YELLOW}Assembling hybrid ISO...${NC}"
+
+ISO_BUILD="$WORK_DIR/iso_build"
+mkdir -p "$ISO_BUILD"/{boot,isolinux}
+
+# BIOS boot
+cp bin/ipxe.lkrn "$ISO_BUILD/boot/ipxe.krn"
+cp /usr/lib/ISOLINUX/isolinux.bin "$ISO_BUILD/isolinux/"
+cp /usr/lib/syslinux/modules/bios/ldlinux.c32 "$ISO_BUILD/isolinux/"
+
+cat > "$ISO_BUILD/isolinux/isolinux.cfg" << 'EOF'
+DEFAULT ipxe
+TIMEOUT 10
+PROMPT 0
+
+LABEL ipxe
+  KERNEL /boot/ipxe.krn
+EOF
+
+# UEFI boot - create efi.img with the new binary
+EFI_IMG="$ISO_BUILD/efi.img"
+dd if=/dev/zero of="$EFI_IMG" bs=1M count=2 2>/dev/null
+mkfs.vfat "$EFI_IMG" >/dev/null 2>&1
+EFI_MNT="$WORK_DIR/efi_mnt"
+mkdir -p "$EFI_MNT"
+mount -o loop "$EFI_IMG" "$EFI_MNT"
+mkdir -p "$EFI_MNT/EFI/BOOT"
+cp bin-x86_64-efi/ipxe.efi "$EFI_MNT/EFI/BOOT/BOOTx64.EFI"
+umount "$EFI_MNT"
+
+# Sanitize OS name for ISO label (max 32 chars, uppercase, no special chars)
+ISO_LABEL=$(echo "${OS_NAME}" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9_-' | cut -c1-32)
+ISO_FILENAME="${OS_NAME}-iPXE.iso"
+# Sanitize filename too
+ISO_FILENAME=$(echo "$ISO_FILENAME" | tr ' ' '_' | tr -cd 'A-Za-z0-9._-')
+
+xorriso -as mkisofs \
+    -o "$WORK_DIR/$ISO_FILENAME" \
+    -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+    -c isolinux/boot.cat \
+    -b isolinux/isolinux.bin \
+    -no-emul-boot \
+    -boot-load-size 4 \
+    -boot-info-table \
+    -eltorito-alt-boot \
+    -e efi.img \
+    -no-emul-boot \
+    -isohybrid-gpt-basdat \
+    -V "$ISO_LABEL" \
+    "$ISO_BUILD" 2>&1 | grep -E "Writing|done" || true
+
+# ============================================================
+# OUTPUT
+# ============================================================
+mkdir -p "$OUTPUT_DIR"
+cp "$WORK_DIR/$ISO_FILENAME" "$OUTPUT_DIR/"
+chmod 644 "$OUTPUT_DIR/$ISO_FILENAME"
+
+cd "$OUTPUT_DIR"
+sha256sum "$ISO_FILENAME" > "$ISO_FILENAME.sha256"
+
+ISO_SIZE=$(du -h "$OUTPUT_DIR/$ISO_FILENAME" | cut -f1)
+SHA256=$(cut -d' ' -f1 "$ISO_FILENAME.sha256")
+
+echo ""
+echo -e "${GREEN}BUILD COMPLETE${NC}"
+echo -e "${GREEN}~~~~~~~~~~~~~~${NC}"
+echo ""
+echo "  Type:     $OS_TYPE_NAME"
+echo "  OS:       $OS_NAME"
+echo "  File:     $OUTPUT_DIR/$ISO_FILENAME"
+echo "  Size:     $ISO_SIZE"
+echo "  SHA256:   $SHA256"
+echo ""
+echo "  Download: https://glitchlinux.wtf/FILES/IPXE/$ISO_FILENAME"
+echo ""
+echo "  Embedded iPXE script:"
+cat "$WORK_DIR/boot.ipxe" | sed 's/^/    /'
+echo ""
+echo "  Write to USB:  dd if=$OUTPUT_DIR/$ISO_FILENAME of=/dev/sdX bs=4M status=progress"
+echo "  Test in QEMU:  qemu-system-x86_64 -cdrom $OUTPUT_DIR/$ISO_FILENAME -boot d -m 512M"
+echo ""
+echo -e "${YELLOW}Cleanup: rm -rf $WORK_DIR${NC}"
+echo ""
